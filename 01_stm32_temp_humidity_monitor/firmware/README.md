@@ -36,8 +36,8 @@ firmware/
 | DHT11 DATA | PA1 | 开漏输出 + 内部上拉，单总线 |
 | 触摸模块 OUT | PA2 | 输入，下拉，高电平有效 |
 | 蜂鸣器 IN | PB5 | 输出，默认低电平触发 |
-| OLED SCL | PB6 | I2C1_SCL，400kHz |
-| OLED SDA | PB7 | I2C1_SDA |
+| OLED SCL | PB10（或 PB6） | I2C2_SCL（备选 I2C1），400kHz |
+| OLED SDA | PB11（或 PB7） | I2C2_SDA（备选 I2C1） |
 | 调试串口 | PA9 / PA10 | USART1，115200 8N1 |
 | ST-Link | PA13 / PA14 | SWDIO / SWCLK |
 
@@ -82,16 +82,17 @@ python tools/gen_font.py --preview docs/ui-preview.png
 ```text
 === Project 01: STM32 Temp & Humidity Monitor ===
 [SYS] HCLK=72000000 Hz, SYSCLK=72000000 Hz
-[I2C] devices: 0x3C
-[OLED] ok, addr=0x3C
+[I2C] I2C1(PB6/PB7):
+[I2C] I2C2(PB10/PB11): 0x3C
+[OLED] ok, I2C2 addr=0x3C
 T_HI=30 T_LO=10 H_HI=80 H_LO=30
 [DHT11] T=26C H=58%
 [ALARM] count=1
 ```
 
-- `[I2C] devices:` 会列出总线上应答的地址，正常应该只有 `0x3C`（或 `0x3D`）；
-  一个都没有就是屏幕没供电 / 没共地 / SCL、SDA 接反。
-- OLED 驱动会自动在 0x3C、0x3D 之间试地址，`[OLED] ok, addr=` 后面就是识别到的地址。
+- `[I2C]` 会分别扫描两条总线；OLED 接哪条，哪条后面就会出现 `0x3C`（或 `0x3D`）。
+- 两条都为空：屏幕没供电 / 没共地 / SCL、SDA 接反 / 接在了别的引脚上。
+- OLED 驱动会自动在 I2C1、I2C2 和 0x3C、0x3D 之间组合尝试，`[OLED] ok,` 后面就是命中的总线和地址。
 - DHT11 读失败会打印 `rc=` 错误码：-2 无应答（接线/上拉问题），-3 超时，-4 校验错。
 
 ## 不接串口时的自检

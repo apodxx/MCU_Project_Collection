@@ -119,17 +119,23 @@ static void beep_times(uint8_t times)
 
 static void i2c_scan_report(void)
 {
+  I2C_HandleTypeDef *buses[2] = { &hi2c1, &hi2c2 };
+  const char *names[2] = { "I2C1(PB6/PB7)", "I2C2(PB10/PB11)" };
+  uint8_t i;
   uint16_t addr;
 
-  printf("[I2C] devices:");
-  for (addr = 0x08u; addr < 0x78u; addr++)
+  for (i = 0; i < 2u; i++)
   {
-    if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(addr << 1), 2u, 20u) == HAL_OK)
+    printf("[I2C] %s:", names[i]);
+    for (addr = 0x08u; addr < 0x78u; addr++)
     {
-      printf(" 0x%02X", (unsigned int)addr);
+      if (HAL_I2C_IsDeviceReady(buses[i], (uint16_t)(addr << 1), 2u, 20u) == HAL_OK)
+      {
+        printf(" 0x%02X", (unsigned int)addr);
+      }
     }
+    printf("\r\n");
   }
-  printf("\r\n");
 }
 
 static uint8_t touch_pressed(void)
@@ -522,12 +528,12 @@ void app_init(void)
 
   if (oled_init() != 0u)
   {
-    printf("[OLED] ok, addr=0x%02X\r\n", (unsigned int)oled_i2c_addr());
+    printf("[OLED] ok, %s addr=0x%02X\r\n", oled_bus_name(), (unsigned int)oled_i2c_addr());
     beep_times(1);              /* 一声：程序正常、屏幕已识别 */
   }
   else
   {
-    printf("[OLED] not found! check VCC=3V3 GND SCL=PB6 SDA=PB7\r\n");
+    printf("[OLED] not found! check VCC=3V3/GND, SCL&SDA on PB6/PB7 or PB10/PB11\r\n");
     beep_times(2);              /* 两声：程序在跑，但屏幕没找到 */
   }
 

@@ -106,8 +106,7 @@ def main():
     text(d, (810, 210), "最小系统板（蓝色核心板）", f_mod_sub, MUTED, "ma")
 
     left_pins = [("PA1", 250), ("PA2", 470), ("PB5", 690)]
-    right_pins = [("PB10", 250), ("PB11", 300), ("PA13", 520),
-                  ("PA14", 570), ("PA9", 710), ("PA10", 760)]
+    right_pins = [("PB10", 250), ("PB11", 300), ("PA13", 520), ("PA14", 570)]
     for name, y in left_pins:
         text(d, (638, y), name, f_pin, INK, "lm")
         d.ellipse([613, y - 5, 623, y + 5], fill=BOARD_LINE)
@@ -130,9 +129,6 @@ def main():
     module(d, (1180, 440, 1460, 620), "ST-Link", "下载 / 调试",
            [("SWDIO", 520, C_SWD), ("SWCLK", 570, C_SWD)], "left",
            (f_mod, f_mod_sub, f_pin))
-    module(d, (1180, 650, 1460, 800), "USB-TTL（可选）", "看串口日志",
-           [("RX", 710, C_UART), ("TX", 760, C_UART)], "left",
-           (f_mod, f_mod_sub, f_pin))
 
     wire(d, (470, 250), (613, 250), C_SIGNAL)
     text(d, (542, 240), "DATA", f_legend, C_SIGNAL, "ms")
@@ -149,10 +145,6 @@ def main():
     text(d, (1094, 510), "SWDIO", f_legend, C_SWD, "ms")
     wire(d, (1180, 570), (1007, 570), C_SWD)
     text(d, (1094, 560), "SWCLK", f_legend, C_SWD, "ms")
-    wire(d, (1180, 710), (1007, 710), C_UART, dash=True)
-    text(d, (1094, 700), "RX", f_legend, C_UART, "ms")
-    wire(d, (1180, 760), (1007, 760), C_UART, dash=True)
-    text(d, (1094, 750), "TX", f_legend, C_UART, "ms")
 
     # ================= 分隔 =================
     d.line([(60, 872), (W - 60, 872)], fill=(222, 226, 230), width=2)
@@ -211,7 +203,7 @@ def main():
         power_pair(cx, box[1], box[3])
 
     # ---- 信号线颜色图例（放在右下空白区）----
-    legend = (1310, 1000, 1600, 1180)
+    legend = (1310, 1000, 1600, 1156)
     rounded(d, legend, 8, (248, 249, 250), (222, 226, 230), 1)
     text(d, (1324, 1012), "信号线颜色", f_legend, MUTED, "la")
     items = [
@@ -221,7 +213,6 @@ def main():
         (C_SCL, "I2C SCL", False),
         (C_SDA, "I2C SDA", False),
         (C_SWD, "SWD 调试", False),
-        (C_UART, "串口（可选）", True),
     ]
     for i, (color, label, dashed) in enumerate(items):
         y = 1038 + i * 20

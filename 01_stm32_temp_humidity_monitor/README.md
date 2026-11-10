@@ -30,7 +30,6 @@
 | 触摸模块（TTP223） | 1 | 单键操作 |
 | 有源蜂鸣器模块 | 1 | 低电平触发（模块丝印），高电平模块改一个宏 |
 | ST-Link 下载器 | 1 | 烧录 + 调试 |
-| USB-TTL（可选） | 1 | 看串口日志 |
 
 ## 接线
 
@@ -60,9 +59,6 @@
 | ST-Link | SWDIO | PA13 | 下载调试 |
 | ST-Link | SWCLK | PA14 | |
 | ST-Link | 3.3V / GND | 3.3V / GND | 给板子供电 |
-| USB-TTL | RX | PA9 | 可选，接串口看日志 |
-| USB-TTL | TX | PA10 | |
-| USB-TTL | GND | GND | 必须共地 |
 
 注意事项：
 
@@ -128,7 +124,6 @@ while(1) ─> app_task()
 2. 目录选择本项目的 `firmware` 文件夹，Finish
 3. `Ctrl+B` 编译（当前占用：Flash 约 23KB / 64KB，RAM 约 3.2KB / 20KB）
 4. 接好 ST-Link，点 ▶ 烧录
-5. 可选：PA9/PA10 接 USB-TTL，115200 打开串口助手看日志
 
 ## 上电自检：先看灯和声音
 

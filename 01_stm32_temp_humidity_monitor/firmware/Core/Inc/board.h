@@ -27,24 +27,19 @@
 
 #define BUZZER_GPIO_PORT      GPIOB
 #define BUZZER_GPIO_PIN       GPIO_PIN_5
-#define BUZZER_ON_LEVEL       GPIO_PIN_SET     /* 高电平触发；低电平模块改成 GPIO_PIN_RESET */
-
-#if (BUZZER_ON_LEVEL == GPIO_PIN_SET)
-#define BUZZER_OFF_LEVEL      GPIO_PIN_RESET
-#else
-#define BUZZER_OFF_LEVEL      GPIO_PIN_SET
-#endif
+#define BUZZER_ON_LEVEL       GPIO_PIN_RESET   /* 模块丝印：低电平触发；高电平模块改成 GPIO_PIN_SET */
+/*
+ * 注意：这里不能用 #if (BUZZER_ON_LEVEL == GPIO_PIN_SET) 判断——
+ * GPIO_PIN_SET 是枚举常量不是宏，预处理器会把它当成 0，导致条件恒成立，
+ * 上下两个电平全变成 RESET，蜂鸣器就会一直响。
+ */
+#define BUZZER_OFF_LEVEL      ((BUZZER_ON_LEVEL == GPIO_PIN_SET) ? GPIO_PIN_RESET : GPIO_PIN_SET)
 
 /* 板载 LED：蓝色核心板 PC13，低电平点亮（用于上电自检与心跳指示） */
 #define LED_GPIO_PORT         GPIOC
 #define LED_GPIO_PIN          GPIO_PIN_13
 #define LED_ON_LEVEL          GPIO_PIN_RESET
-
-#if (LED_ON_LEVEL == GPIO_PIN_SET)
-#define LED_OFF_LEVEL         GPIO_PIN_RESET
-#else
-#define LED_OFF_LEVEL         GPIO_PIN_SET
-#endif
+#define LED_OFF_LEVEL         ((LED_ON_LEVEL == GPIO_PIN_SET) ? GPIO_PIN_RESET : GPIO_PIN_SET)
 
 /* ---------------------------- 功能参数 ---------------------------- */
 #define APP_TEMP_HI_DEFAULT   30

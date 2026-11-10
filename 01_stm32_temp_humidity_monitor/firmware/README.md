@@ -35,7 +35,7 @@ firmware/
 | :-- | :-- | :-- |
 | DHT11 DATA | PA1 | 开漏输出 + 内部上拉，单总线 |
 | 触摸模块 OUT | PA2 | 输入（下拉），高/低有效上电自动识别 |
-| 蜂鸣器 IN | PB5 | 输出，默认高电平触发（低电平模块改 `board.h`） |
+| 蜂鸣器 IN | PB5 | 输出，低电平触发（模块丝印；高电平模块改 `board.h`） |
 | OLED SCL | PB10（或 PB6） | I2C2_SCL（备选 I2C1），400kHz |
 | OLED SDA | PB11（或 PB7） | I2C2_SDA（备选 I2C1） |
 | 调试串口 | PA9 / PA10 | USART1，115200 8N1 |
@@ -45,7 +45,8 @@ firmware/
 
 ### 硬件极性适配
 
-- **蜂鸣器**：`board.h` 的 `BUZZER_ON_LEVEL`，默认高电平触发；低电平模块改成 `GPIO_PIN_RESET`。
+- **蜂鸣器**：`board.h` 的 `BUZZER_ON_LEVEL`，默认低电平触发（和模块丝印一致）；高电平模块改成 `GPIO_PIN_SET`。
+  `BUZZER_OFF_LEVEL` 由三元表达式自动取反，注意**不要用 `#if` 判断枚举值**（`GPIO_PIN_SET` 在预处理器里等于 0，会把两个电平写成一样）。
 - **触摸**：TTP223 分高有效、低有效两种，固件上电后采样 200ms 空闲电平自动判断（上电瞬间别碰触摸板），
   结果打印为 `[TOUCH] idle high=0/50 -> active level HIGH`。
 - **OLED**：I2C1/I2C2、0x3C/0x3D 全自动探测。

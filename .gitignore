@@ -7,6 +7,9 @@
 *.wav
 *.avi
 
+# 项目内演示视频需要入库（已压缩，单个几 MB）
+!01_stm32_temp_humidity_monitor/docs/videos/*.mp4
+
 # ---------------- Keil MDK ----------------
 Objects/
 Listings/

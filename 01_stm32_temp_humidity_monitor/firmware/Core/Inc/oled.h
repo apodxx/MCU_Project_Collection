@@ -11,6 +11,7 @@
 
 uint8_t  oled_init(void);          /* 返回 1 表示初始化成功 */
 uint8_t  oled_ready(void);
+uint8_t  oled_i2c_addr(void);      /* 当前使用的 7 位 I2C 地址 */
 void     oled_clear(void);
 void     oled_flush(void);
 void     oled_pixel(uint8_t x, uint8_t y, uint8_t on);

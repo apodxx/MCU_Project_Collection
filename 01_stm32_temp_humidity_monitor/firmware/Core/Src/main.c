@@ -156,10 +156,23 @@ void SystemClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
+  /* 初始化失败（最常见是 HSE 晶振不起振）时，PC13 快闪，方便不接串口判断 */
+  GPIO_InitTypeDef gpio = {0};
+
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  gpio.Pin = GPIO_PIN_13;
+  gpio.Mode = GPIO_MODE_OUTPUT_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &gpio);
+
   while (1)
   {
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+    for (volatile uint32_t i = 0; i < 200000u; i++)
+    {
+      __NOP();
+    }
   }
   /* USER CODE END Error_Handler_Debug */
 }

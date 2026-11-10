@@ -35,6 +35,17 @@
 #define BUZZER_OFF_LEVEL      GPIO_PIN_SET
 #endif
 
+/* 板载 LED：蓝色核心板 PC13，低电平点亮（用于上电自检与心跳指示） */
+#define LED_GPIO_PORT         GPIOC
+#define LED_GPIO_PIN          GPIO_PIN_13
+#define LED_ON_LEVEL          GPIO_PIN_RESET
+
+#if (LED_ON_LEVEL == GPIO_PIN_SET)
+#define LED_OFF_LEVEL         GPIO_PIN_RESET
+#else
+#define LED_OFF_LEVEL         GPIO_PIN_SET
+#endif
+
 /* ---------------------------- 功能参数 ---------------------------- */
 #define APP_TEMP_HI_DEFAULT   30
 #define APP_TEMP_LO_DEFAULT   10

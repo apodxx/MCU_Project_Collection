@@ -77,14 +77,29 @@ python tools/gen_font.py --preview docs/ui-preview.png
 
 ## 串口调试输出
 
-上电后 115200 串口会打印：
+上电后 115200 串口会打印自检信息和运行日志：
 
 ```text
-[OLED] init ok
 === Project 01: STM32 Temp & Humidity Monitor ===
+[SYS] HCLK=72000000 Hz, SYSCLK=72000000 Hz
+[I2C] devices: 0x3C
+[OLED] ok, addr=0x3C
 T_HI=30 T_LO=10 H_HI=80 H_LO=30
 [DHT11] T=26C H=58%
 [ALARM] count=1
 ```
 
-DHT11 读失败会打印 `rc=` 错误码：-2 无应答（接线/上拉问题），-3 超时，-4 校验错。
+- `[I2C] devices:` 会列出总线上应答的地址，正常应该只有 `0x3C`（或 `0x3D`）；
+  一个都没有就是屏幕没供电 / 没共地 / SCL、SDA 接反。
+- OLED 驱动会自动在 0x3C、0x3D 之间试地址，`[OLED] ok, addr=` 后面就是识别到的地址。
+- DHT11 读失败会打印 `rc=` 错误码：-2 无应答（接线/上拉问题），-3 超时，-4 校验错。
+
+## 不接串口时的自检
+
+| 现象 | 含义 |
+| :-- | :-- |
+| 板载 LED（PC13）快闪 3 次 | 程序已运行 |
+| 蜂鸣器 1 声短鸣 | OLED 初始化成功 |
+| 蜂鸣器 2 声短鸣 | OLED 没找到（程序仍正常运行） |
+| 每秒亮灭各 0.5s | 主循环心跳 |
+| 约 5Hz 连续快闪 | `Error_Handler`：时钟/外设初始化失败 |

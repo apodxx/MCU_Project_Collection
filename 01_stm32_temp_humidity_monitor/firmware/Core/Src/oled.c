@@ -13,7 +13,8 @@
 #include "i2c.h"
 #include <string.h>
 
-#define OLED_I2C_ADDR   (0x3C << 1)
+#define OLED_I2C_ADDR_A  (0x3C << 1)   /* 大多数 0.96 寸模块 */
+#define OLED_I2C_ADDR_B  (0x3D << 1)   /* 少数模块（或模块背面电阻改焊） */
 #define OLED_CMD        0x00
 #define OLED_DATA       0x40
 #define OLED_WIDTH      128
@@ -23,6 +24,7 @@
 #define OLED_I2C_TIMEOUT 100
 
 static uint8_t s_buffer[OLED_PAGES][OLED_WIDTH + 1];
+static uint8_t s_addr = OLED_I2C_ADDR_A;
 static uint8_t s_ready;
 static uint8_t s_error_count;
 
@@ -62,21 +64,48 @@ uint8_t oled_ready(void)
   return s_ready;
 }
 
+uint8_t oled_i2c_addr(void)
+{
+  return (uint8_t)(s_addr >> 1);   /* 返回 7 位地址，打印用 */
+}
+
+static uint8_t oled_probe(uint8_t addr)
+{
+  return (HAL_I2C_IsDeviceReady(&hi2c1, addr, 2u, 20u) == HAL_OK) ? 1u : 0u;
+}
+
 uint8_t oled_init(void)
 {
   uint8_t page;
+  uint8_t addr;
 
   for (page = 0; page < OLED_PAGES; page++)
   {
     s_buffer[page][0] = OLED_DATA;
   }
-  memset(&s_buffer[0][1], 0x00, OLED_WIDTH);
-  for (page = 1; page < OLED_PAGES; page++)
+  for (page = 0; page < OLED_PAGES; page++)
   {
     memset(&s_buffer[page][1], 0x00, OLED_WIDTH);
   }
 
-  if (HAL_I2C_Mem_Write(&hi2c1, OLED_I2C_ADDR, OLED_CMD, I2C_MEMADD_SIZE_8BIT,
+  /* 上电后给模块一点稳定时间，并自动识别 0x3C / 0x3D 两种地址 */
+  HAL_Delay(20);
+  if (oled_probe(OLED_I2C_ADDR_A) != 0u)
+  {
+    addr = OLED_I2C_ADDR_A;
+  }
+  else if (oled_probe(OLED_I2C_ADDR_B) != 0u)
+  {
+    addr = OLED_I2C_ADDR_B;
+  }
+  else
+  {
+    oled_set_ready(0);
+    return 0;
+  }
+  s_addr = addr;
+
+  if (HAL_I2C_Mem_Write(&hi2c1, s_addr, OLED_CMD, I2C_MEMADD_SIZE_8BIT,
                         (uint8_t *)s_init_cmds, sizeof(s_init_cmds),
                         OLED_I2C_TIMEOUT) != HAL_OK)
   {
@@ -115,9 +144,9 @@ void oled_flush(void)
     cmds[1] = 0x00;
     cmds[2] = 0x10;
 
-    if ((HAL_I2C_Mem_Write(&hi2c1, OLED_I2C_ADDR, OLED_CMD, I2C_MEMADD_SIZE_8BIT,
+    if ((HAL_I2C_Mem_Write(&hi2c1, s_addr, OLED_CMD, I2C_MEMADD_SIZE_8BIT,
                            cmds, sizeof(cmds), OLED_I2C_TIMEOUT) != HAL_OK) ||
-        (HAL_I2C_Master_Transmit(&hi2c1, OLED_I2C_ADDR, s_buffer[page],
+        (HAL_I2C_Master_Transmit(&hi2c1, s_addr, s_buffer[page],
                                  OLED_WIDTH + 1, OLED_I2C_TIMEOUT) != HAL_OK))
     {
       if (++s_error_count >= 5)

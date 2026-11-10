@@ -13,6 +13,7 @@
 #include "app.h"
 #include "board.h"
 #include "dht11.h"
+#include "i2c.h"
 #include "oled.h"
 #include <stdio.h>
 #include <string.h>
@@ -81,6 +82,54 @@ static void buzzer_set(uint8_t on)
 {
   HAL_GPIO_WritePin(BUZZER_GPIO_PORT, BUZZER_GPIO_PIN,
                     (on != 0u) ? BUZZER_ON_LEVEL : BUZZER_OFF_LEVEL);
+}
+
+static void led_set(uint8_t on)
+{
+  HAL_GPIO_WritePin(LED_GPIO_PORT, LED_GPIO_PIN,
+                    (on != 0u) ? LED_ON_LEVEL : LED_OFF_LEVEL);
+}
+
+static void led_init(void)
+{
+  GPIO_InitTypeDef gpio = {0};
+
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  gpio.Pin = LED_GPIO_PIN;
+  gpio.Mode = GPIO_MODE_OUTPUT_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LED_GPIO_PORT, &gpio);
+  led_set(0);
+}
+
+/* 开机自检提示音：n 声短鸣（1 声=正常，2 声=OLED 没找到） */
+static void beep_times(uint8_t times)
+{
+  uint8_t i;
+
+  for (i = 0; i < times; i++)
+  {
+    buzzer_set(1);
+    HAL_Delay(80);
+    buzzer_set(0);
+    HAL_Delay(140);
+  }
+}
+
+static void i2c_scan_report(void)
+{
+  uint16_t addr;
+
+  printf("[I2C] devices:");
+  for (addr = 0x08u; addr < 0x78u; addr++)
+  {
+    if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(addr << 1), 2u, 20u) == HAL_OK)
+    {
+      printf(" 0x%02X", (unsigned int)addr);
+    }
+  }
+  printf("\r\n");
 }
 
 static uint8_t touch_pressed(void)
@@ -434,6 +483,16 @@ void app_init(void)
   (void)setvbuf(stdout, NULL, _IONBF, 0);
 
   buzzer_set(0);
+  led_init();
+
+  /* 上电自检：LED 快闪 3 次 —— 只要程序跑起来，一定能看到 */
+  for (uint8_t i = 0; i < 3u; i++)
+  {
+    led_set(1);
+    HAL_Delay(100);
+    led_set(0);
+    HAL_Delay(100);
+  }
 
   /* 触摸模块输出：下拉输入，避免悬空时误触发 */
   gpio.Pin = TOUCH_GPIO_PIN;
@@ -454,22 +513,33 @@ void app_init(void)
   s_dirty = 1;
   s_last_read_tick = HAL_GetTick() - READ_PERIOD_MS;
 
+  printf("=== Project 01: STM32 Temp & Humidity Monitor ===\r\n");
+  printf("[SYS] HCLK=%lu Hz, SYSCLK=%lu Hz\r\n",
+         (unsigned long)HAL_RCC_GetHCLKFreq(),
+         (unsigned long)HAL_RCC_GetSysClockFreq());
+
+  i2c_scan_report();
+
   if (oled_init() != 0u)
   {
-    printf("[OLED] init ok\r\n");
+    printf("[OLED] ok, addr=0x%02X\r\n", (unsigned int)oled_i2c_addr());
+    beep_times(1);              /* 一声：程序正常、屏幕已识别 */
   }
   else
   {
-    printf("[OLED] init failed, check SCL/SDA\r\n");
+    printf("[OLED] not found! check VCC=3V3 GND SCL=PB6 SDA=PB7\r\n");
+    beep_times(2);              /* 两声：程序在跑，但屏幕没找到 */
   }
 
-  printf("=== Project 01: STM32 Temp & Humidity Monitor ===\r\n");
   printf("T_HI=%d T_LO=%d H_HI=%d H_LO=%d\r\n",
          (int)s_t_hi, (int)s_t_lo, (int)s_h_hi, (int)s_h_lo);
 }
 
 void app_task(void)
 {
+  /* 心跳灯：每秒亮灭各 500ms，说明主循环没卡死 */
+  led_set((HAL_GetTick() % 1000u) < 500u ? 1u : 0u);
+
   button_poll();
   sensor_poll();
   alarm_manage();

@@ -10,7 +10,7 @@
 
 | # | 项目 | 主控 | 难度 | 状态 |
 | :-: | :-- | :-- | :-: | :-: |
-| 01 | [基于 STM32 的智能温湿度监测系统](01_stm32_temp_humidity_monitor/README.md) | STM32F103C8T6 | ★ | 🚧 |
+| 01 | [基于 STM32 的智能温湿度监测系统](01_stm32_temp_humidity_monitor/README.md) | STM32F103C8T6 | ★ | ✅ |
 | 02 | [基于 STM32 的智能光照控制系统](02_stm32_light_control_system/README.md) | STM32F103C8T6 | ★ | ⬜ |
 | 03 | [基于 STM32 的智能声音检测与报警系统](03_stm32_sound_detection_alarm/README.md) | STM32F103C8T6 | ★ | ⬜ |
 | 04 | [基于 STM32 的智能舵机角度控制系统](04_stm32_servo_angle_control/README.md) | STM32F103C8T6 | ★ | ⬜ |
@@ -122,4 +122,4 @@ NN_project_name/
 
 - 选题来源于《识别模块清单》整理的 25 个本科毕设课题，按硬件复用与难度沿用原分级。
 - 所有项目均基于现有模块设计，尽量不额外增加硬件成本；个别项目需要的扩展硬件已在备注中注明。
-- 项目 01 已完成代码与文档（编译通过，待上机验证），其余项目随进度逐个补齐。
+- 项目 01 已完成：固件、接线图、接线说明、界面预览齐全，可直接复现；其余项目随进度逐个补齐。

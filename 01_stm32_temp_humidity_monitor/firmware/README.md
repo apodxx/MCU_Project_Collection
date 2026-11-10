@@ -42,6 +42,7 @@ firmware/
 | ST-Link | PA13 / PA14 | SWDIO / SWCLK |
 
 改引脚只需要改 `.ioc` + `Core/Inc/board.h` 里的宏，驱动和业务代码不用动。
+完整接线步骤、线色和检查清单见 **[../hardware/接线说明.md](../hardware/接线说明.md)**。
 
 ### 硬件极性适配
 

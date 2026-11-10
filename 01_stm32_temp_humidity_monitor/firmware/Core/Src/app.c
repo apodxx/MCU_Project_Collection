@@ -71,6 +71,8 @@ static uint8_t  s_touch_raw;
 static uint32_t s_touch_raw_tick;
 static uint32_t s_touch_press_tick;
 static uint8_t  s_touch_long_fired;
+static uint8_t  s_touch_active_level = TOUCH_ACTIVE_LEVEL;   /* 上电时自动识别 */
+static uint8_t  s_touch_seen;                                 /* 本次刷新周期内检测到触摸 */
 
 static uint8_t  s_dirty;
 static uint32_t s_last_render_tick;
@@ -140,7 +142,7 @@ static void i2c_scan_report(void)
 
 static uint8_t touch_pressed(void)
 {
-  return (HAL_GPIO_ReadPin(TOUCH_GPIO_PORT, TOUCH_GPIO_PIN) == TOUCH_ACTIVE_LEVEL) ? 1u : 0u;
+  return (HAL_GPIO_ReadPin(TOUCH_GPIO_PORT, TOUCH_GPIO_PIN) == s_touch_active_level) ? 1u : 0u;
 }
 
 static uint8_t sensor_ok(void)
@@ -242,6 +244,7 @@ static void on_short_press(void)
     s_page = (page_t)((s_page + 1) % PAGE_MAX);
   }
   s_dirty = 1;
+  printf("[TOUCH] short, page=%u\r\n", (unsigned int)s_page);
 }
 
 static void on_long_press(void)
@@ -253,7 +256,7 @@ static void on_long_press(void)
 
   s_editing = (uint8_t)((s_editing == 0u) ? 1u : 0u);
   s_dirty = 1;
-  printf("[SET] edit %s\r\n", (s_editing != 0u) ? "on" : "off");
+  printf("[TOUCH] long, edit=%s\r\n", (s_editing != 0u) ? "on" : "off");
 }
 
 static void button_poll(void)
@@ -274,6 +277,8 @@ static void button_poll(void)
     {
       s_touch_press_tick = now;
       s_touch_long_fired = 0;
+      s_touch_seen = 1;
+      printf("[TOUCH] press\r\n");
     }
     else if ((s_touch_long_fired == 0u) && ((now - s_touch_press_tick) < TOUCH_LONG_MS))
     {
@@ -450,6 +455,14 @@ static void render(void)
   {
     render_setting();
   }
+
+  /* 右上角小方块：触摸被识别时点亮，方便判断 PA2 是否收到信号 */
+  if ((touch_pressed() != 0u) || (s_touch_seen != 0u))
+  {
+    oled_fill_rect(120, 0, 8, 8, 1);
+  }
+  s_touch_seen = 0;
+
   oled_flush();
 }
 
@@ -506,6 +519,25 @@ void app_init(void)
   gpio.Pull = GPIO_PULLDOWN;
   gpio.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(TOUCH_GPIO_PORT, &gpio);
+
+  /* TTP223 有高有效/低有效两种版本：上电时按空闲电平自动判断（此时别碰触摸板） */
+  {
+    uint32_t high_cnt = 0;
+    uint8_t k;
+
+    for (k = 0; k < 50u; k++)
+    {
+      if (HAL_GPIO_ReadPin(TOUCH_GPIO_PORT, TOUCH_GPIO_PIN) == GPIO_PIN_SET)
+      {
+        high_cnt++;
+      }
+      HAL_Delay(4);
+    }
+    s_touch_active_level = (high_cnt >= 40u) ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    printf("[TOUCH] idle high=%lu/50 -> active level %s\r\n",
+           (unsigned long)high_cnt,
+           (s_touch_active_level == GPIO_PIN_SET) ? "HIGH" : "LOW");
+  }
 
   dht11_init();
 

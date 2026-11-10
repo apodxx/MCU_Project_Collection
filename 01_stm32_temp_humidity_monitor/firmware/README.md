@@ -34,14 +34,21 @@ firmware/
 | 功能 | 引脚 | 说明 |
 | :-- | :-- | :-- |
 | DHT11 DATA | PA1 | 开漏输出 + 内部上拉，单总线 |
-| 触摸模块 OUT | PA2 | 输入，下拉，高电平有效 |
-| 蜂鸣器 IN | PB5 | 输出，默认低电平触发 |
+| 触摸模块 OUT | PA2 | 输入（下拉），高/低有效上电自动识别 |
+| 蜂鸣器 IN | PB5 | 输出，默认高电平触发（低电平模块改 `board.h`） |
 | OLED SCL | PB10（或 PB6） | I2C2_SCL（备选 I2C1），400kHz |
 | OLED SDA | PB11（或 PB7） | I2C2_SDA（备选 I2C1） |
 | 调试串口 | PA9 / PA10 | USART1，115200 8N1 |
 | ST-Link | PA13 / PA14 | SWDIO / SWCLK |
 
 改引脚只需要改 `.ioc` + `Core/Inc/board.h` 里的宏，驱动和业务代码不用动。
+
+### 硬件极性适配
+
+- **蜂鸣器**：`board.h` 的 `BUZZER_ON_LEVEL`，默认高电平触发；低电平模块改成 `GPIO_PIN_RESET`。
+- **触摸**：TTP223 分高有效、低有效两种，固件上电后采样 200ms 空闲电平自动判断（上电瞬间别碰触摸板），
+  结果打印为 `[TOUCH] idle high=0/50 -> active level HIGH`。
+- **OLED**：I2C1/I2C2、0x3C/0x3D 全自动探测。
 
 ## 编译 / 烧录
 
@@ -82,11 +89,14 @@ python tools/gen_font.py --preview docs/ui-preview.png
 ```text
 === Project 01: STM32 Temp & Humidity Monitor ===
 [SYS] HCLK=72000000 Hz, SYSCLK=72000000 Hz
+[TOUCH] idle high=0/50 -> active level HIGH
 [I2C] I2C1(PB6/PB7):
 [I2C] I2C2(PB10/PB11): 0x3C
 [OLED] ok, I2C2 addr=0x3C
 T_HI=30 T_LO=10 H_HI=80 H_LO=30
 [DHT11] T=26C H=58%
+[TOUCH] press
+[TOUCH] short, page=1
 [ALARM] count=1
 ```
 

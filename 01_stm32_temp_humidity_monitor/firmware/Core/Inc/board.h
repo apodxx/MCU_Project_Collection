@@ -27,7 +27,7 @@
 
 #define BUZZER_GPIO_PORT      GPIOB
 #define BUZZER_GPIO_PIN       GPIO_PIN_5
-#define BUZZER_ON_LEVEL       GPIO_PIN_RESET   /* 低电平触发；高电平模块改为 GPIO_PIN_SET */
+#define BUZZER_ON_LEVEL       GPIO_PIN_SET     /* 高电平触发；低电平模块改成 GPIO_PIN_RESET */
 
 #if (BUZZER_ON_LEVEL == GPIO_PIN_SET)
 #define BUZZER_OFF_LEVEL      GPIO_PIN_RESET

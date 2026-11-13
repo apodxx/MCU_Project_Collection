@@ -128,7 +128,7 @@ def main():
     module(d, (1180, 190, 1460, 360), "OLED 0.96", "SSD1306 · I2C",
            [("SCL", 250, C_SCL), ("SDA", 300, C_SDA)], "left",
            (f_mod, f_mod_sub, f_pin))
-    module(d, (1180, 460, 1460, 590), "继电器", "低电平触发",
+    module(d, (1180, 460, 1460, 590), "LED 指示灯", "PB5 → 330Ω → LED → GND",
            [("IN", 520, C_RELAY)], "left", (f_mod, f_mod_sub, f_pin))
     module(d, (1180, 600, 1460, 740), "ST-Link", "下载 / 调试",
            [("SWDIO", 620, C_SWD), ("SWCLK", 670, C_SWD)], "left",
@@ -156,7 +156,7 @@ def main():
     rounded(d, (190, 776, 1000, 856), 8, (248, 249, 250), (222, 226, 230), 1)
     text(d, (206, 792), "线色", f_legend, MUTED, "lm")
     col1 = [(C_LIGHT, "光敏 AO"), (C_POT, "电位器 C"), (C_TOUCH, "触摸 OUT")]
-    col2 = [(C_SCL, "I2C SCL"), (C_SDA, "I2C SDA"), (C_RELAY, "继电器 IN"), (C_SWD, "SWD 调试")]
+    col2 = [(C_SCL, "I2C SCL"), (C_SDA, "I2C SDA"), (C_RELAY, "LED 控制"), (C_SWD, "SWD 调试")]
     for i, (color, label) in enumerate(col1):
         y = 792 + i * 18
         d.line([(258, y), (288, y)], fill=color, width=4)
@@ -204,19 +204,26 @@ def main():
     d.ellipse([bx - 6, rail_n_y - 6, bx + 6, rail_n_y + 6], fill=RAIL_N)
 
     mods = [
-        (430, 600, "光敏电阻"),
-        (630, 800, "OLED"),
-        (830, 1000, "电位器"),
-        (1030, 1200, "触摸模块"),
-        (1230, 1400, "继电器"),
+        (430, 600, "光敏电阻", True),
+        (630, 800, "OLED", True),
+        (830, 1000, "电位器", True),
+        (1030, 1200, "触摸模块", True),
+        (1230, 1400, "LED", False),
     ]
-    for mx0, mx1, name in mods:
+    for mx0, mx1, name, has_vcc in mods:
         box = (mx0, 1030, mx1, 1160)
         rounded(d, box, 10, MOD_FILL, MOD_LINE, 2)
         text(d, ((mx0 + mx1) // 2, 1052), name, f_mod, INK, "ma")
-        text(d, ((mx0 + mx1) // 2, 1082), "VCC → + 轨", f_small, MUTED, "ma")
-        text(d, ((mx0 + mx1) // 2, 1104), "GND → - 轨", f_small, MUTED, "ma")
-        power_pair((mx0 + mx1) // 2, box[1], box[3])
+        cx = (mx0 + mx1) // 2
+        if has_vcc:
+            text(d, (cx, 1082), "VCC → + 轨", f_small, MUTED, "ma")
+            d.line([(cx, box[1]), (cx, rail_p_y)], fill=RAIL_P, width=3)
+            d.ellipse([cx - 6, rail_p_y - 6, cx + 6, rail_p_y + 6], fill=RAIL_P)
+        else:
+            text(d, (cx, 1082), "经 330Ω 接 PB5", f_small, MUTED, "ma")
+        text(d, (cx, 1104), "GND → - 轨", f_small, MUTED, "ma")
+        d.line([(cx, box[3]), (cx, rail_n_y)], fill=RAIL_N, width=3)
+        d.ellipse([cx - 6, rail_n_y - 6, cx + 6, rail_n_y + 6], fill=RAIL_N)
 
     text(d, (60, 1252),
          "注意：只用 ST-Link 供电时板子的 5V 引脚没有电，模块一律接 3V3（+ 轨）", f_note,

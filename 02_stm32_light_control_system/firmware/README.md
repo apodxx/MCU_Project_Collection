@@ -9,14 +9,14 @@ firmware/
 ├─ 02_stm32_light_control_system.ioc  # CubeMX 配置（引脚、时钟、外设）
 ├─ Core/
 │  ├─ Inc/
-│  │  ├─ board.h        # 引脚定义、极性开关、阈值范围
+│  │  ├─ board.h        # 引脚定义、极性宏、执行器模式、阈值范围
 │  │  ├─ adc.h          # ADC 双通道采集
 │  │  ├─ oled.h         # OLED 驱动
 │  │  ├─ oled_font.h    # 字库声明
 │  │  └─ app.h
 │  ├─ Src/
 │  │  ├─ main.c         # CubeMX 生成（只在 USER CODE 区加了 3 行）
-│  │  ├─ app.c          # 业务逻辑：采光 / 电位器阈值 / 继电器 / 触摸 / 界面
+│  │  ├─ app.c          # 业务逻辑：采光 / 电位器阈值 / 执行器 / 触摸 / 界面
 │  │  ├─ adc.c          # ADC1 初始化、通道切换、单次转换
 │  │  ├─ oled.c         # SSD1306 显存与绘制（复用项目 01）
 │  │  ├─ oled_font_ascii.c / oled_font_cn.c  # 字库（脚本生成）
@@ -35,11 +35,23 @@ firmware/
 | 光敏电阻 AO | PA0 | ADC1_IN0，模拟输入 |
 | 电位器 C | PA1 | ADC1_IN1，模拟输入（初始化时改成 ANALOG 模式） |
 | 触摸模块 OUT | PA3 | 输入（下拉），极性上电自检 |
-| 继电器 IN | PB5 | 输出，默认低电平触发 |
+| 执行器（LED / 继电器） | PB5 | 输出；LED 高电平点亮，继电器低电平触发 |
 | OLED SCL / SDA | PB10 / PB11 | I2C2（PB6/PB7 的 I2C1 也可，自动识别） |
 | 调试串口 | PA9 / PA10 | USART1，115200 |
 | ST-Link | PA13 / PA14 | SWDIO / SWCLK |
 | 板载 LED | PC13 | 低电平点亮，心跳指示 |
+
+## 执行器模式
+
+`board.h` 里三选一，改完重新编译即可，引脚不变：
+
+```c
+#define ACTUATOR_MODE   ACTUATOR_LED      /* 高电平点亮 */
+// #define ACTUATOR_MODE   ACTUATOR_RELAY /* 低电平触发 */
+// #define ACTUATOR_MODE   ACTUATOR_BUZZER
+```
+
+`ACTUATOR_ON_LEVEL` 会根据模式自动取对/低电平。
 
 ## 关于 ADC
 
@@ -61,7 +73,7 @@ File > Open Projects from File System... -> 选本目录 -> Ctrl+B -> ▶ 烧录
   `USER CODE 3` 调 `app_task()`，CubeMX 重新生成代码不会覆盖。
 - **adc.c**：`adc_read_channel(ch)` 每次切换通道后单次转换；app 里每个通道读 8 次取平均，每 100ms 一轮。
 - **app.c**：光敏亮度 + 电位器阈值（线性映射 5%~95%）+ 回差控制；
-  触摸短按切自动/手动，长按在手动模式下开关继电器。
+  触摸短按切自动/手动，长按在手动模式下开关执行器。
 - **阈值死区**：电位器值变化 ≥1% 才更新，避免 ADC 噪声让阈值来回跳。
 
 ## 字库
@@ -80,11 +92,11 @@ python tools/gen_font.py --preview docs/ui-preview.png
 [TOUCH] idle high=0/50 -> active level HIGH
 [CFG] threshold(pot)=42% range=5%-95% hysteresis=3%
 [OLED] ok, I2C2 addr=0x3C
-[RELAY] ON
+[LAMP] ON
 [MODE] MANUAL
 [LAMP] manual ON
 ```
 
-- `[RELAY] ON/OFF`：继电器动作
+- `[LAMP] ON/OFF`：执行器动作
 - `[MODE] AUTO/MANUAL`：模式切换
 - `[LAMP] manual ...`：手动开关灯

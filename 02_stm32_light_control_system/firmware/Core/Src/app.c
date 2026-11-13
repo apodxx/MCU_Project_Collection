@@ -67,9 +67,9 @@ static void led_init(void)
   led_set(0);
 }
 
-static void relay_write(uint8_t on)
+static void actuator_write(uint8_t on)
 {
-  HAL_GPIO_WritePin(RELAY_PORT, RELAY_PIN, (on != 0u) ? RELAY_ON_LEVEL : RELAY_OFF_LEVEL);
+  HAL_GPIO_WritePin(ACTUATOR_PORT, ACTUATOR_PIN, (on != 0u) ? ACTUATOR_ON_LEVEL : ACTUATOR_OFF_LEVEL);
 }
 
 static void set_lamp(uint8_t on)
@@ -79,9 +79,9 @@ static void set_lamp(uint8_t on)
     return;
   }
   s_lamp = on;
-  relay_write(on);
+  actuator_write(on);
   s_dirty = 1;
-  printf("[RELAY] %s\r\n", (on != 0u) ? "ON" : "OFF");
+  printf("[LAMP] %s\r\n", (on != 0u) ? "ON" : "OFF");
 }
 
 static uint8_t touch_pressed(void)
@@ -308,7 +308,7 @@ void app_init(void)
   (void)setvbuf(stdout, NULL, _IONBF, 0);
 
   led_init();
-  relay_write(0);
+  actuator_write(0);
   s_lamp = 0;
 
   /* 触摸输入：下拉，避免悬空误触发 */

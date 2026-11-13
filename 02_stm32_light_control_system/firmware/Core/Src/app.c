@@ -1,12 +1,12 @@
 /**
   ******************************************************************************
   * @file    app.c
-  * @brief   智能光照控制：ADC 采光、阈值 + 回差控制、单触摸键交互
+  * @brief   智能光照控制：ADC 采光 + 电位器设定阈值 + 触摸键切模式
   *
-  * 交互（只有一个触摸键）：
-  *   主界面 · 自动：短按 = 进入阈值设置    长按 = 切到手动
-  *   主界面 · 手动：短按 = 开灯 / 关灯      长按 = 切到自动
-  *   设置页        ：短按 = 阈值 +5%        长按 = 返回主界面
+  * 交互：
+  *   电位器旋钮：实时设定光照阈值（5%~95%）
+  *   触摸短按  ：自动 / 手动 切换
+  *   触摸长按  ：手动模式下开灯 / 关灯（自动模式下无动作）
   ******************************************************************************
   */
 #include "app.h"
@@ -23,22 +23,12 @@
 #define BTN_DEBOUNCE_MS    20u
 #define BTN_LONG_MS        800u
 
-#define THRESHOLD_MIN      5u
-#define THRESHOLD_MAX      95u
-
-typedef enum
-{
-  PAGE_MAIN = 0,
-  PAGE_SET
-} page_t;
-
 typedef enum
 {
   MODE_AUTO = 0,
   MODE_MANUAL
 } mode_t;
 
-static page_t   s_page;
 static mode_t   s_mode;
 static uint8_t  s_threshold;
 static uint8_t  s_light;
@@ -120,60 +110,25 @@ static void apply_auto_control(void)
   }
 }
 
-/* ------------------------------ 参数调整 ------------------------------ */
-
-static void threshold_step(void)
-{
-  uint8_t value = (uint8_t)(s_threshold + APP_THRESHOLD_STEP);
-
-  if (value > THRESHOLD_MAX)
-  {
-    value = THRESHOLD_MIN;       /* 到头了回到最小值，循环调整 */
-  }
-  s_threshold = value;
-  s_dirty = 1;
-  printf("[TH] %u%%\r\n", (unsigned int)s_threshold);
-  apply_auto_control();
-}
-
 /* ------------------------------ 按键处理 ------------------------------ */
 
 static void on_short_press(void)
 {
-  if (s_page == PAGE_SET)
+  s_mode = (s_mode == MODE_AUTO) ? MODE_MANUAL : MODE_AUTO;
+  s_dirty = 1;
+  printf("[MODE] %s\r\n", (s_mode == MODE_AUTO) ? "AUTO" : "MANUAL");
+  if (s_mode == MODE_AUTO)
   {
-    threshold_step();
-  }
-  else if (s_mode == MODE_MANUAL)
-  {
-    set_lamp((s_lamp == 0u) ? 1u : 0u);
-    printf("[LAMP] manual %s\r\n", (s_lamp != 0u) ? "ON" : "OFF");
-  }
-  else
-  {
-    s_page = PAGE_SET;
-    s_dirty = 1;
-    printf("[UI] threshold setting\r\n");
+    apply_auto_control();
   }
 }
 
 static void on_long_press(void)
 {
-  if (s_page == PAGE_SET)
+  if (s_mode == MODE_MANUAL)
   {
-    s_page = PAGE_MAIN;
-    s_dirty = 1;
-    printf("[UI] back to main\r\n");
-  }
-  else
-  {
-    s_mode = (s_mode == MODE_AUTO) ? MODE_MANUAL : MODE_AUTO;
-    s_dirty = 1;
-    printf("[MODE] %s\r\n", (s_mode == MODE_AUTO) ? "AUTO" : "MANUAL");
-    if (s_mode == MODE_AUTO)
-    {
-      apply_auto_control();
-    }
+    set_lamp((s_lamp == 0u) ? 1u : 0u);
+    printf("[LAMP] manual %s\r\n", (s_lamp != 0u) ? "ON" : "OFF");
   }
 }
 
@@ -216,13 +171,36 @@ static void button_poll(void)
 
 /* ------------------------------ 采集与控制 ------------------------------ */
 
+static uint16_t adc_average(uint32_t channel)
+{
+  uint32_t sum = 0;
+  uint8_t i;
+
+  for (i = 0; i < 8u; i++)
+  {
+    sum += adc_read_channel(channel);
+  }
+  return (uint16_t)(sum / 8u);
+}
+
+static uint8_t pot_to_threshold(uint16_t raw)
+{
+  uint32_t span = (uint32_t)(POT_MAX_THRESHOLD - POT_MIN_THRESHOLD);
+  uint32_t value = POT_MIN_THRESHOLD + ((uint32_t)raw * span) / 4095u;
+
+  if (value > POT_MAX_THRESHOLD)
+  {
+    value = POT_MAX_THRESHOLD;
+  }
+  return (uint8_t)value;
+}
+
 static void sensor_poll(void)
 {
   uint32_t now = HAL_GetTick();
-  uint32_t sum = 0;
   uint16_t raw;
   uint8_t light;
-  uint8_t i;
+  uint8_t threshold;
 
   if ((now - s_last_sample) < SAMPLE_PERIOD_MS)
   {
@@ -230,21 +208,24 @@ static void sensor_poll(void)
   }
   s_last_sample = now;
 
-  for (i = 0; i < 8u; i++)
-  {
-    sum += adc_read_raw();
-  }
-  raw = (uint16_t)(sum / 8u);
-
+  /* 光敏：亮度百分比 */
+  raw = adc_average(ADC_CHANNEL_0);
   light = (uint8_t)(((uint32_t)raw * 100u) / 4095u);
 #if (LIGHT_DARK_WHEN_LOW == 0)
   light = (uint8_t)(100u - light);
 #endif
-
   if ((s_light_valid == 0u) || (light != s_light))
   {
     s_light = light;
     s_light_valid = 1;
+    s_dirty = 1;
+  }
+
+  /* 电位器：实时阈值 */
+  threshold = pot_to_threshold(adc_average(POT_ADC_CHANNEL));
+  if (threshold != s_threshold)
+  {
+    s_threshold = threshold;
     s_dirty = 1;
   }
 
@@ -253,11 +234,14 @@ static void sensor_poll(void)
 
 /* ------------------------------ 界面显示 ------------------------------ */
 
-static void render_main(void)
+static void render(void)
 {
   char buf[12];
-  uint8_t hint_alt = (uint8_t)((HAL_GetTick() / HINT_PERIOD_MS) & 1u);
+  uint32_t now = HAL_GetTick();
+  uint8_t hint_alt = (uint8_t)((now / HINT_PERIOD_MS) & 1u);
   const char *hint;
+
+  oled_clear();
 
   oled_draw_text(0, 0, "光照");
   (void)snprintf(buf, sizeof(buf), "%u%%", (unsigned int)s_light);
@@ -273,39 +257,16 @@ static void render_main(void)
   oled_draw_text(0, 48, "灯");
   oled_draw_text(24, 48, (s_lamp != 0u) ? "开" : "关");
 
-  if (s_mode == MODE_AUTO)
+  if (hint_alt != 0u)
   {
-    hint = (hint_alt != 0u) ? "短按设置" : "长按手动";
+    hint = (s_mode == MODE_AUTO) ? "短按切手动" : "长按开关灯";
   }
   else
   {
-    hint = (hint_alt != 0u) ? "短按开关灯" : "长按自动";
+    hint = "旋钮调阈值";
   }
   oled_draw_text((uint8_t)(128u - oled_text_width(hint)), 48, hint);
-}
 
-static void render_setting(void)
-{
-  char buf[12];
-
-  oled_draw_text_center(0, "阈值设置");
-  (void)snprintf(buf, sizeof(buf), "[%u%%]", (unsigned int)s_threshold);
-  oled_draw_text_center(16, buf);
-  oled_draw_text_center(32, "短按+5%");
-  oled_draw_text_center(48, "长按返回");
-}
-
-static void render(void)
-{
-  oled_clear();
-  if (s_page == PAGE_MAIN)
-  {
-    render_main();
-  }
-  else
-  {
-    render_setting();
-  }
   oled_flush();
 }
 
@@ -370,20 +331,21 @@ void app_init(void)
 
   adc_init();
 
-  s_page = PAGE_MAIN;
   s_mode = MODE_AUTO;
-  s_threshold = APP_THRESHOLD_DEFAULT;
   s_light = 0;
   s_light_valid = 0;
   s_dirty = 1;
 
-  printf("=== Project 02: STM32 Light Control ===\r\n");
+  /* 上电先把电位器位置读成阈值 */
+  s_threshold = pot_to_threshold(adc_average(POT_ADC_CHANNEL));
+
+  printf("=== Project 02: STM32 Light Control (pot threshold) ===\r\n");
   printf("[SYS] HCLK=%lu Hz\r\n", (unsigned long)HAL_RCC_GetHCLKFreq());
   printf("[TOUCH] idle high=%lu/50 -> active level %s\r\n",
          (unsigned long)high_cnt, (s_touch_active_level == GPIO_PIN_SET) ? "HIGH" : "LOW");
-  printf("[CFG] threshold=%u%% step=%u%% hysteresis=%u%%\r\n",
-         (unsigned int)s_threshold, (unsigned int)APP_THRESHOLD_STEP,
-         (unsigned int)APP_HYSTERESIS);
+  printf("[CFG] threshold(pot)=%u%% range=%u%%-%u%% hysteresis=%u%%\r\n",
+         (unsigned int)s_threshold, (unsigned int)POT_MIN_THRESHOLD,
+         (unsigned int)POT_MAX_THRESHOLD, (unsigned int)APP_HYSTERESIS);
 
   if (oled_init() != 0u)
   {

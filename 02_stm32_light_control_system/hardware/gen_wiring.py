@@ -26,6 +26,7 @@ RAIL_N = (38, 50, 56)
 
 C_LIGHT = (67, 160, 71)
 C_TOUCH = (251, 140, 0)
+C_POT = (0, 137, 123)
 C_ENC_A = (67, 160, 71)
 C_ENC_B = (0, 137, 123)
 C_ENC_SW = (109, 76, 65)
@@ -106,7 +107,7 @@ def main():
     text(d, (810, 176), "STM32F103C8T6", font(FONT_EN, 24), INK, "ma")
     text(d, (810, 210), "最小系统板（蓝色核心板）", f_mod_sub, MUTED, "ma")
 
-    left_pins = [("PA0", 250), ("PA3", 550)]
+    left_pins = [("PA0", 250), ("PA1", 470), ("PA3", 550)]
     right_pins = [("PB10", 250), ("PB11", 300), ("PB5", 520), ("PA13", 620), ("PA14", 670)]
     for name, y in left_pins:
         text(d, (638, y), name, f_pin, INK, "lm")
@@ -119,7 +120,9 @@ def main():
 
     module(d, (190, 190, 470, 320), "光敏电阻", "AO 模拟量",
            [("AO", 250, C_LIGHT)], "right", (f_mod, f_mod_sub, f_pin))
-    module(d, (190, 460, 470, 600), "触摸模块", "TTP223 单键",
+    module(d, (190, 380, 470, 510), "电位器", "A/C/B 三脚",
+           [("C", 470, C_POT)], "right", (f_mod, f_mod_sub, f_pin))
+    module(d, (190, 530, 470, 660), "触摸模块", "TTP223 单键",
            [("OUT", 550, C_TOUCH)], "right", (f_mod, f_mod_sub, f_pin))
 
     module(d, (1180, 190, 1460, 360), "OLED 0.96", "SSD1306 · I2C",
@@ -133,6 +136,8 @@ def main():
 
     wire(d, (470, 250), (613, 250), C_LIGHT)
     text(d, (542, 240), "AO", f_legend, C_LIGHT, "ms")
+    wire(d, (470, 470), (613, 470), C_POT)
+    text(d, (542, 460), "C", f_legend, C_POT, "ms")
     wire(d, (470, 550), (613, 550), C_TOUCH)
     text(d, (542, 540), "OUT", f_legend, C_TOUCH, "ms")
 
@@ -150,7 +155,7 @@ def main():
     # ---- 线色图例 ----
     rounded(d, (190, 776, 1000, 856), 8, (248, 249, 250), (222, 226, 230), 1)
     text(d, (206, 792), "线色", f_legend, MUTED, "lm")
-    col1 = [(C_LIGHT, "光敏 AO"), (C_TOUCH, "触摸 OUT")]
+    col1 = [(C_LIGHT, "光敏 AO"), (C_POT, "电位器 C"), (C_TOUCH, "触摸 OUT")]
     col2 = [(C_SCL, "I2C SCL"), (C_SDA, "I2C SDA"), (C_RELAY, "继电器 IN"), (C_SWD, "SWD 调试")]
     for i, (color, label) in enumerate(col1):
         y = 792 + i * 18
@@ -199,10 +204,11 @@ def main():
     d.ellipse([bx - 6, rail_n_y - 6, bx + 6, rail_n_y + 6], fill=RAIL_N)
 
     mods = [
-        (450, 610, "光敏电阻"),
-        (670, 830, "OLED"),
-        (890, 1050, "触摸模块"),
-        (1110, 1270, "继电器"),
+        (430, 600, "光敏电阻"),
+        (630, 800, "OLED"),
+        (830, 1000, "电位器"),
+        (1030, 1200, "触摸模块"),
+        (1230, 1400, "继电器"),
     ]
     for mx0, mx1, name in mods:
         box = (mx0, 1030, mx1, 1160)

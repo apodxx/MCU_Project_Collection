@@ -240,7 +240,7 @@ def render_preview(ascii_tbl, cn_tbl, out_path):
     s.text(40, 32, "自动", ascii_tbl, cn_tbl)
     s.text(0, 48, "灯", ascii_tbl, cn_tbl)
     s.text(24, 48, "关", ascii_tbl, cn_tbl)
-    hint = "长按设置"
+    hint = "短按设置"
     s.text(128 - s.width(hint), 48, hint, ascii_tbl, cn_tbl)
     screens.append(("1. MAIN (AUTO)", s))
 
@@ -253,15 +253,15 @@ def render_preview(ascii_tbl, cn_tbl, out_path):
     s.text(40, 32, "手动", ascii_tbl, cn_tbl)
     s.text(0, 48, "灯", ascii_tbl, cn_tbl)
     s.text(24, 48, "开", ascii_tbl, cn_tbl)
-    hint = "旋转开关灯"
+    hint = "短按开关灯"
     s.text(128 - s.width(hint), 48, hint, ascii_tbl, cn_tbl)
     screens.append(("2. MAIN (MANUAL)", s))
 
     s = Screen()
     s.text_center(0, "阈值设置", ascii_tbl, cn_tbl)
     s.text_center(16, "[30%]", ascii_tbl, cn_tbl)
-    s.text_center(32, "旋转调整", ascii_tbl, cn_tbl)
-    s.text_center(48, "短按返回", ascii_tbl, cn_tbl)
+    s.text_center(32, "短按+5%", ascii_tbl, cn_tbl)
+    s.text_center(48, "长按返回", ascii_tbl, cn_tbl)
     screens.append(("3. SETTING", s))
 
     scale = 3

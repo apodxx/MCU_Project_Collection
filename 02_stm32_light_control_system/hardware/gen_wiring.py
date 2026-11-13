@@ -24,7 +24,8 @@ MOD_LINE = (30, 136, 229)
 RAIL_P = (211, 47, 47)
 RAIL_N = (38, 50, 56)
 
-C_LIGHT = (251, 140, 0)
+C_LIGHT = (67, 160, 71)
+C_TOUCH = (251, 140, 0)
 C_ENC_A = (67, 160, 71)
 C_ENC_B = (0, 137, 123)
 C_ENC_SW = (109, 76, 65)
@@ -105,7 +106,7 @@ def main():
     text(d, (810, 176), "STM32F103C8T6", font(FONT_EN, 24), INK, "ma")
     text(d, (810, 210), "最小系统板（蓝色核心板）", f_mod_sub, MUTED, "ma")
 
-    left_pins = [("PA0", 250), ("PA1", 470), ("PA2", 510), ("PA3", 550)]
+    left_pins = [("PA0", 250), ("PA3", 550)]
     right_pins = [("PB10", 250), ("PB11", 300), ("PB5", 520), ("PA13", 620), ("PA14", 670)]
     for name, y in left_pins:
         text(d, (638, y), name, f_pin, INK, "lm")
@@ -118,9 +119,8 @@ def main():
 
     module(d, (190, 190, 470, 320), "光敏电阻", "AO 模拟量",
            [("AO", 250, C_LIGHT)], "right", (f_mod, f_mod_sub, f_pin))
-    module(d, (190, 420, 470, 600), "旋转编码器", "EC11",
-           [("A", 470, C_ENC_A), ("B", 510, C_ENC_B), ("SW", 550, C_ENC_SW)], "right",
-           (f_mod, f_mod_sub, f_pin))
+    module(d, (190, 460, 470, 600), "触摸模块", "TTP223 单键",
+           [("OUT", 550, C_TOUCH)], "right", (f_mod, f_mod_sub, f_pin))
 
     module(d, (1180, 190, 1460, 360), "OLED 0.96", "SSD1306 · I2C",
            [("SCL", 250, C_SCL), ("SDA", 300, C_SDA)], "left",
@@ -133,12 +133,8 @@ def main():
 
     wire(d, (470, 250), (613, 250), C_LIGHT)
     text(d, (542, 240), "AO", f_legend, C_LIGHT, "ms")
-    wire(d, (470, 470), (613, 470), C_ENC_A)
-    text(d, (542, 460), "A", f_legend, C_ENC_A, "ms")
-    wire(d, (470, 510), (613, 510), C_ENC_B)
-    text(d, (542, 500), "B", f_legend, C_ENC_B, "ms")
-    wire(d, (470, 550), (613, 550), C_ENC_SW)
-    text(d, (542, 540), "SW", f_legend, C_ENC_SW, "ms")
+    wire(d, (470, 550), (613, 550), C_TOUCH)
+    text(d, (542, 540), "OUT", f_legend, C_TOUCH, "ms")
 
     wire(d, (1180, 250), (1007, 250), C_SCL)
     text(d, (1094, 240), "SCL", f_legend, C_SCL, "ms")
@@ -154,7 +150,7 @@ def main():
     # ---- 线色图例 ----
     rounded(d, (190, 776, 1000, 856), 8, (248, 249, 250), (222, 226, 230), 1)
     text(d, (206, 792), "线色", f_legend, MUTED, "lm")
-    col1 = [(C_LIGHT, "光敏 AO"), (C_ENC_A, "编码器 A"), (C_ENC_B, "编码器 B"), (C_ENC_SW, "编码器 SW")]
+    col1 = [(C_LIGHT, "光敏 AO"), (C_TOUCH, "触摸 OUT")]
     col2 = [(C_SCL, "I2C SCL"), (C_SDA, "I2C SDA"), (C_RELAY, "继电器 IN"), (C_SWD, "SWD 调试")]
     for i, (color, label) in enumerate(col1):
         y = 792 + i * 18
@@ -205,7 +201,7 @@ def main():
     mods = [
         (450, 610, "光敏电阻"),
         (670, 830, "OLED"),
-        (890, 1050, "编码器"),
+        (890, 1050, "触摸模块"),
         (1110, 1270, "继电器"),
     ]
     for mx0, mx1, name in mods:

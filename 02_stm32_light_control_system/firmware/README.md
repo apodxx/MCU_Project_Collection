@@ -10,14 +10,16 @@ firmware/
 ├─ Core/
 │  ├─ Inc/
 │  │  ├─ board.h        # 引脚定义、极性宏、执行器模式、阈值范围
-│  │  ├─ adc.h          # ADC 双通道采集
+│  │  ├─ adc.h          # ADC 采集
+│  │  ├─ encoder.h      # 旋转编码器正交解码
 │  │  ├─ oled.h         # OLED 驱动
 │  │  ├─ oled_font.h    # 字库声明
 │  │  └─ app.h
 │  ├─ Src/
 │  │  ├─ main.c         # CubeMX 生成（只在 USER CODE 区加了 3 行）
-│  │  ├─ app.c          # 业务逻辑：采光 / 电位器阈值 / 执行器 / 触摸 / 界面
-│  │  ├─ adc.c          # ADC1 初始化、通道切换、单次转换
+│  │  ├─ app.c          # 业务逻辑：采光 / 阈值 / 执行器 / 触摸 / 界面
+│  │  ├─ adc.c          # ADC1 初始化与单次转换
+│  │  ├─ encoder.c      # A/B 状态表解码
 │  │  ├─ oled.c         # SSD1306 显存与绘制（复用项目 01）
 │  │  ├─ oled_font_ascii.c / oled_font_cn.c  # 字库（脚本生成）
 │  │  ├─ retarget.c     # printf 重定向到 USART1
@@ -33,7 +35,7 @@ firmware/
 | 功能 | 引脚 | 说明 |
 | :-- | :-- | :-- |
 | 光敏电阻 AO | PA0 | ADC1_IN0，模拟输入 |
-| 电位器 C | PA1 | ADC1_IN1，模拟输入（初始化时改成 ANALOG 模式） |
+| 编码器 A / B | PA1 / PA2 | 内部上拉输入，正交解码 |
 | 触摸模块 OUT | PA3 | 输入（下拉），极性上电自检 |
 | 执行器（LED / 继电器） | PB5 | 输出；LED 高电平点亮，继电器低电平触发 |
 | OLED SCL / SDA | PB10 / PB11 | I2C2（PB6/PB7 的 I2C1 也可，自动识别） |
@@ -51,13 +53,12 @@ firmware/
 // #define ACTUATOR_MODE   ACTUATOR_BUZZER
 ```
 
-`ACTUATOR_ON_LEVEL` 会根据模式自动取对/低电平。
+`ACTUATOR_ON_LEVEL` 会根据模式自动取高/低电平。
 
 ## 关于 ADC
 
-`.ioc` 里只把 **PA0 / PA1 配成模拟输入**，ADC1 的 IP 配置没有写进去；
-`adc.c` 里手工完成时钟使能、`HAL_ADC_Init`、通道配置和校准，
-并把 PA1 重新配置为 `GPIO_MODE_ANALOG`（CubeMX 生成的是普通输入）。
+`.ioc` 里只把 **PA0 配成模拟输入**，ADC1 的 IP 配置没有写进去；
+`adc.c` 里手工完成时钟使能、`HAL_ADC_Init`、通道配置和校准。
 `stm32f1xx_hal_conf.h` 里的 `HAL_ADC_MODULE_ENABLED` 已打开，
 `Drivers/STM32F1xx_HAL_Driver` 下补了 `stm32f1xx_hal_adc.c / _ex.c`。
 
@@ -71,10 +72,9 @@ File > Open Projects from File System... -> 选本目录 -> Ctrl+B -> ▶ 烧录
 
 - **main.c 只改了三处**：`USER CODE Includes` 加 `app.h`，`USER CODE 2` 调 `app_init()`，
   `USER CODE 3` 调 `app_task()`，CubeMX 重新生成代码不会覆盖。
-- **adc.c**：`adc_read_channel(ch)` 每次切换通道后单次转换；app 里每个通道读 8 次取平均，每 100ms 一轮。
-- **app.c**：光敏亮度 + 电位器阈值（线性映射 5%~95%）+ 回差控制；
-  触摸短按切自动/手动，长按在手动模式下开关执行器。
-- **阈值死区**：电位器值变化 ≥1% 才更新，避免 ADC 噪声让阈值来回跳。
+- **adc.c**：单次转换，app 里每 100ms 采 8 次取平均。
+- **encoder.c**：16 项状态表解码，`ENC_COUNTS_PER_STEP` 控制每格跳变数，`ENC_REVERSE` 控制方向。
+- **app.c**：光敏亮度 + 编码器调阈值 + 回差控制；触摸短按切自动/手动，长按在手动模式下开关执行器。
 
 ## 字库
 
@@ -87,16 +87,17 @@ python tools/gen_font.py --preview docs/ui-preview.png
 ## 串口调试输出
 
 ```text
-=== Project 02: STM32 Light Control (pot threshold) ===
+=== Project 02: STM32 Light Control (encoder threshold) ===
 [SYS] HCLK=72000000 Hz
 [TOUCH] idle high=0/50 -> active level HIGH
-[CFG] threshold(pot)=42% range=5%-95% hysteresis=3%
+[CFG] threshold=30% step=5% hysteresis=3%
 [OLED] ok, I2C2 addr=0x3C
+[TH] 35%
 [LAMP] ON
 [MODE] MANUAL
 [LAMP] manual ON
 ```
 
+- `[TH] xx%`：编码器调阈值
 - `[LAMP] ON/OFF`：执行器动作
 - `[MODE] AUTO/MANUAL`：模式切换
-- `[LAMP] manual ...`：手动开关灯

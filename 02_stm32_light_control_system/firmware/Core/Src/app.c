@@ -1,10 +1,10 @@
 /**
   ******************************************************************************
   * @file    app.c
-  * @brief   智能光照控制：ADC 采光 + 电位器设定阈值 + 触摸键切模式
+  * @brief   智能光照控制：ADC 采光 + 旋转编码器调阈值 + 触摸键切模式
   *
   * 交互：
-  *   电位器旋钮：实时设定光照阈值（5%~95%）
+  *   编码器旋钮：调光照阈值（5%~95%，每格 5%）
   *   触摸短按  ：自动 / 手动 切换
   *   触摸长按  ：手动模式下开灯 / 关灯（自动模式下无动作）
   ******************************************************************************
@@ -12,6 +12,7 @@
 #include "app.h"
 #include "adc.h"
 #include "board.h"
+#include "encoder.h"
 #include "i2c.h"
 #include "oled.h"
 #include <stdio.h>
@@ -106,8 +107,29 @@ static void apply_auto_control(void)
   }
   else
   {
-    /* 回差区间内保持当前状态，避免继电器反复吸合 */
+    /* 回差区间内保持当前状态，避免输出频繁开关 */
   }
+}
+
+/* ------------------------------ 参数调整 ------------------------------ */
+
+static void threshold_step(int8_t dir)
+{
+  int16_t value = (int16_t)s_threshold + ((int16_t)dir * (int16_t)APP_THRESHOLD_STEP);
+
+  if (value > (int16_t)APP_THRESHOLD_MAX)
+  {
+    value = (int16_t)APP_THRESHOLD_MIN;
+  }
+  if (value < (int16_t)APP_THRESHOLD_MIN)
+  {
+    value = (int16_t)APP_THRESHOLD_MAX;
+  }
+
+  s_threshold = (uint8_t)value;
+  s_dirty = 1;
+  printf("[TH] %u%%\r\n", (unsigned int)s_threshold);
+  apply_auto_control();
 }
 
 /* ------------------------------ 按键处理 ------------------------------ */
@@ -171,36 +193,13 @@ static void button_poll(void)
 
 /* ------------------------------ 采集与控制 ------------------------------ */
 
-static uint16_t adc_average(uint32_t channel)
-{
-  uint32_t sum = 0;
-  uint8_t i;
-
-  for (i = 0; i < 8u; i++)
-  {
-    sum += adc_read_channel(channel);
-  }
-  return (uint16_t)(sum / 8u);
-}
-
-static uint8_t pot_to_threshold(uint16_t raw)
-{
-  uint32_t span = (uint32_t)(POT_MAX_THRESHOLD - POT_MIN_THRESHOLD);
-  uint32_t value = POT_MIN_THRESHOLD + ((uint32_t)raw * span) / 4095u;
-
-  if (value > POT_MAX_THRESHOLD)
-  {
-    value = POT_MAX_THRESHOLD;
-  }
-  return (uint8_t)value;
-}
-
 static void sensor_poll(void)
 {
   uint32_t now = HAL_GetTick();
+  uint32_t sum = 0;
   uint16_t raw;
   uint8_t light;
-  uint8_t threshold;
+  uint8_t i;
 
   if ((now - s_last_sample) < SAMPLE_PERIOD_MS)
   {
@@ -208,24 +207,21 @@ static void sensor_poll(void)
   }
   s_last_sample = now;
 
-  /* 光敏：亮度百分比 */
-  raw = adc_average(ADC_CHANNEL_0);
+  for (i = 0; i < 8u; i++)
+  {
+    sum += adc_read_channel(ADC_CHANNEL_0);
+  }
+  raw = (uint16_t)(sum / 8u);
+
   light = (uint8_t)(((uint32_t)raw * 100u) / 4095u);
 #if (LIGHT_DARK_WHEN_LOW == 0)
   light = (uint8_t)(100u - light);
 #endif
+
   if ((s_light_valid == 0u) || (light != s_light))
   {
     s_light = light;
     s_light_valid = 1;
-    s_dirty = 1;
-  }
-
-  /* 电位器：实时阈值 */
-  threshold = pot_to_threshold(adc_average(POT_ADC_CHANNEL));
-  if (threshold != s_threshold)
-  {
-    s_threshold = threshold;
     s_dirty = 1;
   }
 
@@ -329,23 +325,22 @@ void app_init(void)
   }
   s_touch_active_level = (high_cnt >= 40u) ? GPIO_PIN_RESET : GPIO_PIN_SET;
 
+  encoder_init();
   adc_init();
 
   s_mode = MODE_AUTO;
+  s_threshold = APP_THRESHOLD_DEFAULT;
   s_light = 0;
   s_light_valid = 0;
   s_dirty = 1;
 
-  /* 上电先把电位器位置读成阈值 */
-  s_threshold = pot_to_threshold(adc_average(POT_ADC_CHANNEL));
-
-  printf("=== Project 02: STM32 Light Control (pot threshold) ===\r\n");
+  printf("=== Project 02: STM32 Light Control (encoder threshold) ===\r\n");
   printf("[SYS] HCLK=%lu Hz\r\n", (unsigned long)HAL_RCC_GetHCLKFreq());
   printf("[TOUCH] idle high=%lu/50 -> active level %s\r\n",
          (unsigned long)high_cnt, (s_touch_active_level == GPIO_PIN_SET) ? "HIGH" : "LOW");
-  printf("[CFG] threshold(pot)=%u%% range=%u%%-%u%% hysteresis=%u%%\r\n",
-         (unsigned int)s_threshold, (unsigned int)POT_MIN_THRESHOLD,
-         (unsigned int)POT_MAX_THRESHOLD, (unsigned int)APP_HYSTERESIS);
+  printf("[CFG] threshold=%u%% step=%u%% hysteresis=%u%%\r\n",
+         (unsigned int)s_threshold, (unsigned int)APP_THRESHOLD_STEP,
+         (unsigned int)APP_HYSTERESIS);
 
   if (oled_init() != 0u)
   {
@@ -359,10 +354,19 @@ void app_init(void)
 
 void app_task(void)
 {
+  int8_t dir;
+
   /* 心跳灯 */
   led_set((HAL_GetTick() % 1000u) < 500u ? 1u : 0u);
 
   button_poll();
+
+  dir = encoder_poll();
+  if (dir != 0)
+  {
+    threshold_step(dir);
+  }
+
   sensor_poll();
   ui_task();
 

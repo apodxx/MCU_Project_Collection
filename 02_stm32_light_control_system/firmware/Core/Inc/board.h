@@ -5,7 +5,9 @@
   *
   * 接线（STM32F103C8T6 最小系统板）：
   *   光敏电阻模块 AO -> PA0    （ADC1_IN0，模拟量）
-  *   电位器模块 C     -> PA1    （ADC1_IN1，旋钮调阈值）
+  *   旋转编码器 A     -> PA1
+  *   旋转编码器 B     -> PA2
+  *   旋转编码器 C     -> GND    （公共端）
   *   OLED SCL        -> PB10   （I2C2_SCL；接 PB6/I2C1 也能自动识别）
   *   OLED SDA        -> PB11   （I2C2_SDA；接 PB7/I2C1 也能自动识别）
   *   触摸模块 OUT     -> PA3    （TTP223，极性上电自动识别）
@@ -20,16 +22,21 @@
 
 /* ---------------------------- 光敏电阻 ---------------------------- */
 /* 判断哪个方向是“暗”：
- *   1 = 遮住光敏电阻时数值变小（常见模块）
- *   0 = 遮住时数值变大（有些模块 AO 极性相反）
- * 上电后用手遮一下，看屏幕数值是变大还是变小，据此修改。 */
-#define LIGHT_DARK_WHEN_LOW     1
+ *   1 = 遮住光敏电阻时数值变小
+ *   0 = 遮住时数值变大（你手上这块模块是这种：越暗输出越高）
+ * 上电后用手遮一下、再用手电照一下，看屏幕数值变化方向，据此修改。 */
+#define LIGHT_DARK_WHEN_LOW     0
 
-/* ---------------------------- 电位器（阈值旋钮） ---------------------------- */
-#define POT_ADC_CHANNEL         ADC_CHANNEL_1   /* PA1 */
-#define POT_MIN_THRESHOLD       5u              /* 旋到最小对应 5% */
-#define POT_MAX_THRESHOLD       95u             /* 旋到最大对应 95% */
-/* 旋钮方向反了：把电位器的 A、B 两根线对调即可，不用改代码。 */
+/* ---------------------------- 旋转编码器（360 度，A/C/B 三脚） ---------------------------- */
+#define ENC_A_PORT              GPIOA
+#define ENC_A_PIN               GPIO_PIN_1
+#define ENC_B_PORT              GPIOA
+#define ENC_B_PIN               GPIO_PIN_2
+
+/* 转一格跳变数：不同编码器每格 2~4 个跳变，转一格跳两下就把 4 改成 8，转不动就改成 2 */
+#define ENC_COUNTS_PER_STEP     4
+/* 方向反了：A/B 两根线对调，或把这里改成 1 */
+#define ENC_REVERSE             0
 
 /* ---------------------------- 触摸按键 ---------------------------- */
 #define TOUCH_PORT              GPIOA
@@ -64,7 +71,10 @@
 #define LED_OFF_LEVEL           ((LED_ON_LEVEL == GPIO_PIN_SET) ? GPIO_PIN_RESET : GPIO_PIN_SET)
 
 /* ---------------------------- 业务参数 ---------------------------- */
-#define APP_THRESHOLD_DEFAULT   30      /* 电位器还没读到时用的默认阈值 */
+#define APP_THRESHOLD_DEFAULT   30      /* 默认阈值 30% */
+#define APP_THRESHOLD_STEP      5       /* 转一格调整 5% */
+#define APP_THRESHOLD_MIN       5u
+#define APP_THRESHOLD_MAX       95u
 #define APP_HYSTERESIS          3       /* 回差 3%，防止输出频繁开关 */
 
 #endif /* BOARD_H */

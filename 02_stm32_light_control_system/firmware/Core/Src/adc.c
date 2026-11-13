@@ -1,11 +1,9 @@
 /**
   ******************************************************************************
   * @file    adc.c
-  * @brief   ADC1 单次转换，两个通道：
-  *            ADC_CHANNEL_0 -> PA0 光敏电阻
-  *            ADC_CHANNEL_1 -> PA1 电位器
+  * @brief   ADC1 单次转换（PA0 光敏电阻）
   *
-  * 说明：ADC 部分是手工初始化的（CubeMX 工程里只把 PA0/PA1 配成了模拟输入），
+  * 说明：ADC 部分是手工初始化的（CubeMX 工程里只把 PA0 配成了模拟输入），
   *       因为 ADC1 的 IP 配置没有写进 .ioc，这里直接在代码里开时钟、校准。
   ******************************************************************************
   */
@@ -17,16 +15,8 @@ ADC_HandleTypeDef hadc1;
 void adc_init(void)
 {
   ADC_ChannelConfTypeDef cfg = {0};
-  GPIO_InitTypeDef gpio = {0};
 
   __HAL_RCC_ADC1_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  /* PA1 在 CubeMX 里配的是普通输入，这里改成模拟输入给 ADC 用 */
-  gpio.Pin = GPIO_PIN_1;
-  gpio.Mode = GPIO_MODE_ANALOG;
-  gpio.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &gpio);
 
   hadc1.Instance = ADC1;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;

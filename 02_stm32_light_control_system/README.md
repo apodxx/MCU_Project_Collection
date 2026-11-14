@@ -33,6 +33,18 @@
 | LED（任意颜色）+ 330Ω 电阻 | 1 | 指示灯，代替继电器 |
 | ST-Link 下载器 | 1 | 烧录 + 调试 |
 
+### 模块实物
+
+| 模块 | 实物 | 接线要点 |
+| :-- | :-- | :-- |
+| STM32F103C8T6 核心板 | <img src="hardware/photos/modules/stm32f103c8t6.jpg" width="300"> | 蓝色核心板；找 `A0`、`A1`、`A2`、`A3`、`PB5`、`B10`、`B11` 这几个丝印 |
+| 光敏电阻模块 | <img src="hardware/photos/modules/light-sensor.jpg" width="240"> | 4 针：`VCC` `GND` `DO` `AO`，**用 AO**，DO 空着 |
+| 360° 旋转编码器 | <img src="hardware/photos/modules/encoder-360.jpg" width="200"> | 三脚 `A` `C` `B`：A→PA1、B→PA2、**C→GND** |
+| 0.96" OLED（I2C） | <img src="hardware/photos/modules/oled-096.jpg" width="220"> | 4 针：`GND` `VCC` `SCL` `SDA`，接 3V3 |
+| LED（任意颜色）+ 330Ω | <img src="hardware/photos/modules/led.jpg" width="260"> | 长脚正极经 330Ω 接 PB5，短脚接 GND |
+
+> 图片是模块外形参考，不同批次的丝印顺序可能不同，**以实物丝印为准**。
+
 ## 接线
 
 ![接线图](hardware/wiring.png)

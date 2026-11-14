@@ -131,6 +131,58 @@ while(1) ─> app_task()
 
 ⚠️ 继电器接 220V 灯具时：先用 5V 小灯测试逻辑，接市电必须断电操作、做好绝缘。
 
+## 彩蛋：达文西的手电筒（有光才亮）
+
+> 《国产凌凌漆》里达文西的「太阳能手电筒」：**有光的时候它就会亮，没有光的时候绝对不亮**。
+> 本项目只要把自动模式的判断反过来，就能复刻这个效果。下面只写方法，不改默认代码。
+
+### 现在的逻辑（正常照明）
+
+```c
+/* app.c -> apply_auto_control() */
+if (s_light <= s_threshold)                        set_lamp(1);   /* 暗  -> 开灯 */
+else if (s_light >= s_threshold + APP_HYSTERESIS)  set_lamp(0);   /* 亮  -> 关灯 */
+```
+
+### 达文西逻辑（有光才亮）
+
+把比较方向对调，回差方向也要跟着对调：
+
+```c
+/* 有光才亮：亮 -> 开灯；暗 -> 关灯 */
+if (s_light >= s_threshold)                        set_lamp(1);
+else if (s_light <= s_threshold - APP_HYSTERESIS)  set_lamp(0);
+```
+
+改完重新编译烧录：手电照它 → LED 亮；一遮住 → LED 灭。
+
+### 想做成可切换的
+
+在 `board.h` 加一个宏：
+
+```c
+#define LAMP_DAYLIGHT_MODE  1   /* 1 = 达文西模式，0 = 正常照明 */
+```
+
+`apply_auto_control()` 里改成：
+
+```c
+#if (LAMP_DAYLIGHT_MODE != 0)
+  if (s_light >= s_threshold)                        set_lamp(1);
+  else if (s_light <= s_threshold - APP_HYSTERESIS)  set_lamp(0);
+#else
+  if (s_light <= s_threshold)                        set_lamp(1);
+  else if (s_light >= s_threshold + APP_HYSTERESIS)  set_lamp(0);
+#endif
+```
+
+### 几个注意点
+
+- `s_threshold` 最小 5、`APP_HYSTERESIS` 是 3，`s_threshold - 3` 最小是 2，不会出现无符号下溢。
+- 手动模式和触摸键不受影响：短按切模式、长按手动开关灯，照旧。
+- 屏幕上的「光照」和「阈值」含义不变，只是灯的判断方向反了。
+- 这个模式适合演示、或者做「有光时亮起」的指示；真正的照明控制还是用默认逻辑。
+
 ## 扩展方向
 
 - 把 LED 换成继电器 + 台灯，做真正的照明控制

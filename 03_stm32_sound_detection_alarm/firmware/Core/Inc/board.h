@@ -22,6 +22,14 @@
 /* ---------------------------- 声音传感器 ---------------------------- */
 #define SOUND_ADC_CHANNEL       ADC_CHANNEL_0   /* PA0 */
 
+/* 声音模块的 OUT 有两种类型，按实物选：
+ *   1 = 模拟输出：OUT 电压随声音连续变化（模块上通常标 AO）
+ *   0 = 数字输出：OUT 只有高低电平，灵敏度由模块上的蓝色电位器决定（模块上标 OUT/DO）
+ * 判断方法：上电后对着麦克风说话，如果屏幕数值只在 0% 和 100% 之间跳，
+ *           说明是数字输出，把下面改成 0 重新编译。 */
+#define SOUND_OUT_ANALOG        1
+#define SOUND_OUT_MODE          SOUND_OUT_ANALOG
+
 /* ---------------------------- 旋转编码器（360 度，A/C/B 三脚） ---------------------------- */
 #define ENC_A_PORT              GPIOA
 #define ENC_A_PIN               GPIO_PIN_1

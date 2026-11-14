@@ -42,6 +42,19 @@ firmware/
 | ST-Link | PA13 / PA14 | SWDIO / SWCLK |
 | 板载 LED | PC13 | 低电平点亮，心跳指示 |
 
+## 声音输出类型（重要）
+
+`board.h` 里根据模块类型二选一：
+
+```c
+#define SOUND_OUT_MODE   SOUND_OUT_ANALOG   /* 默认：OUT 是模拟电压 */
+// #define SOUND_OUT_MODE   SOUND_OUT_DIGITAL /* OUT 只有高低电平 */
+```
+
+- **模拟输出**：数值 0~100% 连续变化，阈值判断正常。
+- **数字输出**：模块内部比较器输出 0/3.3V，固件把「高电平」当作 100%，
+  灵敏度由模块上的蓝色电位器决定；如果数值只在 0/100 跳，就改成数字模式。
+
 ## 关于 ADC
 
 `.ioc` 里只把 **PA0 配成模拟输入**，ADC1 的 IP 配置没有写进去；

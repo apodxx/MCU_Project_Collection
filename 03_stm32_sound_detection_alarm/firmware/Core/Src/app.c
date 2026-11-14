@@ -99,7 +99,11 @@ static void sensor_poll(void)
     sum += adc_read_channel(SOUND_ADC_CHANNEL);
   }
   raw = (uint16_t)(sum / 4u);
+#if (SOUND_OUT_MODE == SOUND_OUT_ANALOG)
   level = (uint8_t)(((uint32_t)raw * 100u) / 4095u);
+#else
+  level = (raw > 2048u) ? 100u : 0u;   /* 数字输出：高于中点算“有声音” */
+#endif
 
   /* 快起慢落：新值权重 3/4，声音峰值不会被平滑掉，回落时更平滑 */
   s_level = (uint8_t)((s_level + (uint16_t)level * 3u) / 4u);

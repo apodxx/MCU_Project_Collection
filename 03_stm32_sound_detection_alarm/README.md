@@ -30,6 +30,18 @@
 | 0.96" OLED（SSD1306，I2C） | 1 | 4 针：VCC/GND/SCL/SDA |
 | ST-Link 下载器 | 1 | 烧录 + 调试 |
 
+### 模块实物
+
+| 模块 | 实物 | 接线要点 |
+| :-- | :-- | :-- |
+| STM32F103C8T6 核心板 | <img src="hardware/photos/modules/stm32f103c8t6.jpg" width="300"> | 蓝色核心板；找 `A0`、`A1`、`A2`、`PB5`、`B10`、`B11` 这几个丝印 |
+| 声音传感器（3 针） | <img src="hardware/photos/modules/sound-sensor.jpg" width="240"> | 丝印 `OUT` `GND` `VCC`：VCC→3V3，GND→GND，**OUT→PA0** |
+| 360° 旋转编码器 | <img src="hardware/photos/modules/encoder-360.jpg" width="190"> | 三脚 `A` `C` `B`：A→PA1、B→PA2、**C→GND** |
+| 有源蜂鸣器 | <img src="hardware/photos/modules/buzzer.jpg" width="230"> | 丝印 `GND` `I/O` `VCC`：**I/O→PB5**，低电平触发 |
+| 0.96" OLED（I2C） | <img src="hardware/photos/modules/oled-096.jpg" width="210"> | 4 针：`GND` `VCC` `SCL` `SDA`，接 3V3 |
+
+> 图片是模块外形参考，不同批次的丝印顺序可能不同（比如声音模块就有 OUT/GND/VCC 和 VCC/GND/OUT 两种排布），**以实物丝印为准**。
+
 ## 接线
 
 ![接线图](hardware/wiring.png)

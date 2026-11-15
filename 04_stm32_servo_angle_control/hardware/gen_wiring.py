@@ -83,7 +83,7 @@ def main():
     f_panel = font(FONT_CN, 19)
     f_small = font(FONT_CN, 13)
 
-    text(d, (W // 2, 28), "项目 04 · 智能舵机角度控制 · 接线图", f_title, INK, "ma")
+    text(d, (W // 2, 28), "项目 04 · 摄像头云台控制 · 接线图", f_title, INK, "ma")
     text(d, (W // 2, 76),
          "STM32F103C8T6 最小系统板　|　按板上丝印找引脚，图中位置仅示意", f_sub, MUTED, "ma")
 

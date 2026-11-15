@@ -262,7 +262,7 @@ def render_preview(ascii_tbl, cn_tbl, out_path):
     s.text(40, 32, "45°", ascii_tbl, cn_tbl)
     s.text(0, 48, "状态", ascii_tbl, cn_tbl)
     s.text(40, 48, "转动中", ascii_tbl, cn_tbl)
-    screens.append(("3. SWEEP", s))
+    screens.append(("3. AUTO-PAN", s))
 
     scale = 3
     gap = 18

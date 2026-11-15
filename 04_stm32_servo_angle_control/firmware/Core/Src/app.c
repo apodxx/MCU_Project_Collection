@@ -126,25 +126,32 @@ static const char *mode_name(char *buf, size_t size)
 
 static void on_short_press(void)
 {
-  s_mode = (mode_t)((s_mode + 1) % MODE_COUNT);
+  if (s_mode == MODE_MANUAL)
+  {
+    /* 手动模式：每按一次，栏杆抬 15°，到顶后回到 0° */
+    uint16_t next = (uint16_t)s_target + APP_MANUAL_STEP;
 
-  if (s_mode == MODE_PRESET)
-  {
-    s_preset = 2u;                       /* 默认从 90° 开始 */
-    set_target(s_presets[s_preset]);
+    if (next > SERVO_ANGLE_MAX)
+    {
+      next = 0;
+    }
+    set_target((uint8_t)next);
+    beep(APP_BEEP_ARRIVE_MS);
+    printf("[MANUAL] -> %u deg\r\n", (unsigned int)next);
   }
-  else if (s_mode == MODE_SWEEP)
+  else if (s_mode == MODE_PRESET)
   {
-    set_target((s_current < 90u) ? 180u : 0u);
+    /* 预设模式：按一次切到下一个预置位 */
+    s_preset = (uint8_t)((s_preset + 1u) % 5u);
+    set_target(s_presets[s_preset]);
+    beep(APP_BEEP_ARRIVE_MS);
+    printf("[PRESET] %u (%u deg)\r\n", (unsigned int)(s_preset + 1u),
+           (unsigned int)s_presets[s_preset]);
   }
   else
   {
-    set_target(s_current);               /* 手动模式从当前角度接着转 */
+    /* 往复模式自动运行，短按不动作 */
   }
-
-  beep(APP_BEEP_ARRIVE_MS);
-  printf("[MODE] %s\r\n", (s_mode == MODE_MANUAL) ? "MANUAL" :
-                          (s_mode == MODE_PRESET) ? "PRESET" : "SWEEP");
 }
 
 static void on_long_press(void)
@@ -152,7 +159,7 @@ static void on_long_press(void)
   s_mode = MODE_MANUAL;
   set_target(APP_ANGLE_HOME);
   beep(APP_BEEP_LIMIT_MS);
-  printf("[MODE] HOME %u\r\n", (unsigned int)APP_ANGLE_HOME);
+  printf("[MODE] HOME %u (gate closed)\r\n", (unsigned int)APP_ANGLE_HOME);
 }
 
 static void button_poll(void)
@@ -194,45 +201,42 @@ static void button_poll(void)
 
 /* ------------------------------ 角度控制 ------------------------------ */
 
-static void encoder_apply(int8_t dir)
+static void enter_mode(mode_t mode)
 {
-  int16_t value;
+  s_mode = mode;
 
-  if (s_mode == MODE_MANUAL)
+  if (mode == MODE_MANUAL)
   {
-    value = (int16_t)s_target + ((int16_t)dir * (int16_t)APP_ANGLE_STEP);
-    if (value > (int16_t)SERVO_ANGLE_MAX)
-    {
-      value = (int16_t)SERVO_ANGLE_MAX;
-      beep(APP_BEEP_LIMIT_MS);
-    }
-    else if (value < (int16_t)SERVO_ANGLE_MIN)
-    {
-      value = (int16_t)SERVO_ANGLE_MIN;
-      beep(APP_BEEP_LIMIT_MS);
-    }
-    set_target((uint8_t)value);
+    set_target(s_current);                        /* 手动：从当前角度接着按 */
   }
-  else if (s_mode == MODE_PRESET)
+  else if (mode == MODE_PRESET)
   {
-    value = (int16_t)s_preset + (int16_t)dir;
-    if (value < 0)
-    {
-      value = 4;
-    }
-    else if (value > 4)
-    {
-      value = 0;
-    }
-    s_preset = (uint8_t)value;
-    set_target(s_presets[s_preset]);
-    printf("[PRESET] %u (%u deg)\r\n", (unsigned int)(s_preset + 1u),
-           (unsigned int)s_presets[s_preset]);
+    set_target(s_presets[s_preset]);              /* 预设：先到当前预置位 */
   }
   else
   {
-    /* 往复模式：编码器不参与，速度固定 */
+    set_target((s_current < 90u) ? 180u : 0u);    /* 往复：先摆向另一头 */
   }
+
+  beep(APP_BEEP_ARRIVE_MS);
+  printf("[MODE] %s\r\n", (mode == MODE_MANUAL) ? "MANUAL" :
+                          (mode == MODE_PRESET) ? "PRESET" : "SWEEP");
+}
+
+/* 编码器只负责切模式：转一格切一个，循环 */
+static void encoder_apply(int8_t dir)
+{
+  int16_t mode = (int16_t)s_mode + (int16_t)dir;
+
+  if (mode < 0)
+  {
+    mode = (int16_t)MODE_COUNT - 1;
+  }
+  if (mode >= (int16_t)MODE_COUNT)
+  {
+    mode = 0;
+  }
+  enter_mode((mode_t)mode);
 }
 
 /* 每 20ms 让当前角度向目标走一步，形成缓动 */
@@ -369,7 +373,7 @@ void app_init(void)
   printf("[TOUCH] idle high=%lu/50 -> active level %s\r\n",
          (unsigned long)high_cnt, (s_touch_active_level == GPIO_PIN_SET) ? "HIGH" : "LOW");
   printf("[CFG] start=%u deg step=%u deg ramp=%u deg/%ums\r\n",
-         (unsigned int)APP_ANGLE_HOME, (unsigned int)APP_ANGLE_STEP,
+         (unsigned int)APP_ANGLE_HOME, (unsigned int)APP_MANUAL_STEP,
          (unsigned int)APP_RAMP_STEP, (unsigned int)APP_RAMP_MS);
 
   if (oled_init() != 0u)

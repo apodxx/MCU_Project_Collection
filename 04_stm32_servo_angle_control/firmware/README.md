@@ -69,7 +69,8 @@ File > Open Projects from File System... -> 选本目录 -> Ctrl+B -> ▶ 烧录
   `USER CODE 3` 调 `app_task()`，CubeMX 重新生成代码不会覆盖。
 - **pwm.c**：`servo_set_angle(angle)` 把 0~180° 映射成 500~2500µs，直接写 CCR。
 - **encoder.c**：16 项状态表解码，`ENC_COUNTS_PER_STEP` 控制每格跳变数。
-- **app.c**：三态状态机（手动/预设/往复）+ 20ms 缓动 + 到位/限位提示音。
+- **app.c**：三态状态机（手动/预设/往复，编码器切换）+ 20ms 缓动 + 到位/限位提示音；
+  触摸短按按模式执行（手动 +15° / 预设切位），长按关闸。
 
 ## 字库
 
@@ -85,14 +86,15 @@ python tools/gen_font.py --preview docs/ui-preview.png
 === Project 04: STM32 Servo Angle Control ===
 [SYS] HCLK=72000000 Hz
 [TOUCH] idle high=0/50 -> active level HIGH
-[CFG] start=90 deg step=5 deg ramp=2 deg/20ms
+[CFG] start=0 deg step=15 deg ramp=2 deg/20ms
 [OLED] ok, I2C2 addr=0x3C
-[TARGET] 120
+[MANUAL] -> 15 deg
 [MODE] PRESET
 [PRESET] 3 (90 deg)
-[MODE] HOME 90
+[MODE] HOME 0 (gate closed)
 ```
 
-- `[TARGET] xx`：目标角度变化
-- `[MODE] MANUAL/PRESET/SWEEP`：模式切换
-- `[PRESET] n (xx deg)`：预设点切换
+- `[MANUAL] -> xx deg`：手动模式按触摸抬杆
+- `[MODE] MANUAL/PRESET/SWEEP`：编码器切换模式
+- `[PRESET] n (xx deg)`：预设模式按触摸切预置位
+- `[MODE] HOME 0`：长按关闸

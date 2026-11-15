@@ -54,7 +54,7 @@
 #define LED_OFF_LEVEL           ((LED_ON_LEVEL == GPIO_PIN_SET) ? GPIO_PIN_RESET : GPIO_PIN_SET)
 
 /* ---------------------------- 业务参数 ---------------------------- */
-#define APP_ANGLE_STEP          5       /* 编码器每格转 5° */
+#define APP_MANUAL_STEP         15      /* 手动模式：每按一次触摸转 15° */
 #define APP_ANGLE_HOME          0       /* 长按回位：0° = 关闸（上电也停在这里） */
 #define APP_RAMP_MS             20      /* 每 20ms 走一步 */
 #define APP_RAMP_STEP           2       /* 每步 2°，180° 约 1.8 秒 */

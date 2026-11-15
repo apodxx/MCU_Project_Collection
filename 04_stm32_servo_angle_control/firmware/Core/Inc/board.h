@@ -55,7 +55,7 @@
 
 /* ---------------------------- 业务参数 ---------------------------- */
 #define APP_ANGLE_STEP          5       /* 编码器每格转 5° */
-#define APP_ANGLE_HOME          90      /* 长按回中角度 */
+#define APP_ANGLE_HOME          0       /* 长按回位：0° = 关闸（上电也停在这里） */
 #define APP_RAMP_MS             20      /* 每 20ms 走一步 */
 #define APP_RAMP_STEP           2       /* 每步 2°，180° 约 1.8 秒 */
 #define APP_ARRIVE_TOL          1       /* 差 1° 以内算到位 */

@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""生成项目 04 的接线示意图（Pillow 绘制）。
-
-上：信号线接法
-下：面包板电源分配（舵机 5V，其余 3V3，GND 共用）
-
-用法：python gen_wiring.py [输出路径]
-"""
+"""生成项目 04（自动闸门）的接线示意图。"""
 
 import os
 import sys
@@ -29,6 +23,7 @@ C_SERVO = (251, 140, 0)
 C_ENC_A = (67, 160, 71)
 C_ENC_B = (0, 137, 123)
 C_TOUCH = (239, 108, 0)
+C_IR = (106, 27, 154)
 C_SCL = (30, 136, 229)
 C_SDA = (142, 36, 170)
 C_BUZZ = (249, 168, 37)
@@ -83,18 +78,18 @@ def main():
     f_panel = font(FONT_CN, 19)
     f_small = font(FONT_CN, 13)
 
-    text(d, (W // 2, 28), "项目 04 · 自动闸门控制 · 接线图", f_title, INK, "ma")
+    text(d, (W // 2, 28), "项目 04 · 自动闸门 · 接线图", f_title, INK, "ma")
     text(d, (W // 2, 76),
-         "STM32F103C8T6 最小系统板　|　按板上丝印找引脚，图中位置仅示意", f_sub, MUTED, "ma")
+         "STM32F103C8T6 最小系统板　|　红外检测车辆，舵机抬杆", f_sub, MUTED, "ma")
 
     # ================= 上：信号线 =================
-    board = (620, 150, 1000, 768)
+    board = (620, 150, 1000, 830)
     rounded(d, board, 14, BOARD_FILL, BOARD_LINE, 3)
     text(d, (810, 176), "STM32F103C8T6", font(FONT_EN, 24), INK, "ma")
     text(d, (810, 210), "最小系统板（蓝色核心板）", f_mod_sub, MUTED, "ma")
 
-    left_pins = [("PA0", 250), ("PA1", 470), ("PA2", 510), ("PA3", 650)]
-    right_pins = [("PB10", 250), ("PB11", 300), ("PB5", 520), ("PA13", 620), ("PA14", 670)]
+    left_pins = [("PA0", 230), ("PA1", 400), ("PA2", 440), ("PA3", 570), ("PA4", 730)]
+    right_pins = [("PB10", 230), ("PB11", 280), ("PB5", 450), ("PA13", 620), ("PA14", 670)]
     for name, y in left_pins:
         text(d, (638, y), name, f_pin, INK, "lm")
         d.ellipse([613, y - 5, 623, y + 5], fill=BOARD_LINE)
@@ -102,116 +97,116 @@ def main():
         text(d, (982, y), name, f_pin, INK, "rm")
         d.ellipse([997, y - 5, 1007, y + 5], fill=BOARD_LINE)
 
-    text(d, (810, 730), "VCC / GND 接法见下方「面包板电源分配」", f_small, MUTED, "ma")
+    text(d, (810, 792), "VCC / GND 接法见下方「面包板电源分配」", f_small, MUTED, "ma")
 
-    module(d, (190, 190, 470, 320), "舵机 SG90", "橙色 = 信号线",
-           [("PWM", 250, C_SERVO)], "right", (f_mod, f_mod_sub, f_pin))
-    module(d, (190, 420, 470, 560), "旋转编码器", "A/B 正交 · C 接 GND",
-           [("A", 470, C_ENC_A), ("B", 510, C_ENC_B)], "right",
+    module(d, (190, 170, 470, 300), "舵机 SG90", "橙色 = 信号线",
+           [("PWM", 230, C_SERVO)], "right", (f_mod, f_mod_sub, f_pin))
+    module(d, (190, 330, 470, 470), "旋转编码器", "A/B 正交 · C 接 GND",
+           [("A", 400, C_ENC_A), ("B", 440, C_ENC_B)], "right",
            (f_mod, f_mod_sub, f_pin))
-    module(d, (190, 600, 470, 730), "触摸模块", "TTP223 单键",
-           [("OUT", 650, C_TOUCH)], "right", (f_mod, f_mod_sub, f_pin))
+    module(d, (190, 500, 470, 630), "触摸模块", "TTP223 单键",
+           [("OUT", 570, C_TOUCH)], "right", (f_mod, f_mod_sub, f_pin))
+    module(d, (190, 660, 470, 790), "红外避障", "检测到车 → 低电平",
+           [("OUT", 730, C_IR)], "right", (f_mod, f_mod_sub, f_pin))
 
-    module(d, (1180, 190, 1460, 360), "OLED 0.96", "SSD1306 · I2C",
-           [("SCL", 250, C_SCL), ("SDA", 300, C_SDA)], "left",
+    module(d, (1180, 170, 1460, 340), "OLED 0.96", "SSD1306 · I2C",
+           [("SCL", 230, C_SCL), ("SDA", 280, C_SDA)], "left",
            (f_mod, f_mod_sub, f_pin))
-    module(d, (1180, 460, 1460, 590), "蜂鸣器", "低电平触发",
-           [("IN", 520, C_BUZZ)], "left", (f_mod, f_mod_sub, f_pin))
-    module(d, (1180, 600, 1460, 740), "ST-Link", "下载 / 调试",
+    module(d, (1180, 380, 1460, 510), "蜂鸣器", "低电平触发",
+           [("IN", 450, C_BUZZ)], "left", (f_mod, f_mod_sub, f_pin))
+    module(d, (1180, 540, 1460, 700), "ST-Link", "下载 / 调试",
            [("SWDIO", 620, C_SWD), ("SWCLK", 670, C_SWD)], "left",
            (f_mod, f_mod_sub, f_pin))
 
-    d.line([(470, 250), (613, 250)], fill=C_SERVO, width=3)
-    text(d, (542, 240), "PWM", f_legend, C_SERVO, "ms")
-    d.line([(470, 470), (613, 470)], fill=C_ENC_A, width=3)
-    text(d, (542, 460), "A", f_legend, C_ENC_A, "ms")
-    d.line([(470, 510), (613, 510)], fill=C_ENC_B, width=3)
-    text(d, (542, 500), "B", f_legend, C_ENC_B, "ms")
-    d.line([(470, 650), (613, 650)], fill=C_TOUCH, width=3)
-    text(d, (542, 640), "OUT", f_legend, C_TOUCH, "ms")
+    d.line([(470, 230), (613, 230)], fill=C_SERVO, width=3)
+    text(d, (542, 220), "PWM", f_legend, C_SERVO, "ms")
+    d.line([(470, 400), (613, 400)], fill=C_ENC_A, width=3)
+    text(d, (542, 390), "A", f_legend, C_ENC_A, "ms")
+    d.line([(470, 440), (613, 440)], fill=C_ENC_B, width=3)
+    text(d, (542, 430), "B", f_legend, C_ENC_B, "ms")
+    d.line([(470, 570), (613, 570)], fill=C_TOUCH, width=3)
+    text(d, (542, 560), "OUT", f_legend, C_TOUCH, "ms")
+    d.line([(470, 730), (613, 730)], fill=C_IR, width=3)
+    text(d, (542, 720), "OUT", f_legend, C_IR, "ms")
 
-    d.line([(1180, 250), (1007, 250)], fill=C_SCL, width=3)
-    text(d, (1094, 240), "SCL", f_legend, C_SCL, "ms")
-    d.line([(1180, 300), (1007, 300)], fill=C_SDA, width=3)
-    text(d, (1094, 290), "SDA", f_legend, C_SDA, "ms")
-    d.line([(1180, 520), (1007, 520)], fill=C_BUZZ, width=3)
-    text(d, (1094, 510), "IN", f_legend, C_BUZZ, "ms")
+    d.line([(1180, 230), (1007, 230)], fill=C_SCL, width=3)
+    text(d, (1094, 220), "SCL", f_legend, C_SCL, "ms")
+    d.line([(1180, 280), (1007, 280)], fill=C_SDA, width=3)
+    text(d, (1094, 270), "SDA", f_legend, C_SDA, "ms")
+    d.line([(1180, 450), (1007, 450)], fill=C_BUZZ, width=3)
+    text(d, (1094, 440), "IN", f_legend, C_BUZZ, "ms")
     d.line([(1180, 620), (1007, 620)], fill=C_SWD, width=3)
     text(d, (1094, 610), "SWDIO", f_legend, C_SWD, "ms")
     d.line([(1180, 670), (1007, 670)], fill=C_SWD, width=3)
     text(d, (1094, 660), "SWCLK", f_legend, C_SWD, "ms")
 
     # ---- 线色图例 ----
-    rounded(d, (190, 776, 1000, 846), 8, (248, 249, 250), (222, 226, 230), 1)
-    text(d, (206, 792), "线色", f_legend, MUTED, "lm")
+    rounded(d, (190, 822, 1000, 906), 8, (248, 249, 250), (222, 226, 230), 1)
+    text(d, (204, 838), "线色", f_legend, MUTED, "lm")
     col1 = [(C_SERVO, "舵机信号"), (C_ENC_A, "编码器 A"), (C_ENC_B, "编码器 B"),
             (C_TOUCH, "触摸 OUT")]
-    col2 = [(C_SCL, "I2C SCL"), (C_SDA, "I2C SDA"), (C_BUZZ, "蜂鸣器 IN"), (C_SWD, "SWD 调试")]
-    for i, (color, label) in enumerate(col1):
-        y = 788 + i * 16
-        d.line([(258, y), (288, y)], fill=color, width=4)
-        text(d, (296, y), label, f_legend, INK, "lm")
-    for i, (color, label) in enumerate(col2):
-        y = 788 + i * 16
-        d.line([(520, y), (550, y)], fill=color, width=4)
-        text(d, (558, y), label, f_legend, INK, "lm")
+    col2 = [(C_IR, "红外 OUT"), (C_BUZZ, "蜂鸣器 IN"), (C_SCL, "I2C SCL"), (C_SDA, "I2C SDA")]
+    col3 = [(C_SWD, "SWD 调试")]
+    for col, x in ((col1, 250), (col2, 470), (col3, 700)):
+        for i, (color, label) in enumerate(col):
+            y = 842 + i * 17
+            d.line([(x, y), (x + 26, y)], fill=color, width=4)
+            text(d, (x + 32, y), label, f_legend, INK, "lm")
 
     # ================= 分隔 =================
-    d.line([(60, 872), (W - 60, 872)], fill=(222, 226, 230), width=2)
-    text(d, (60, 890),
+    d.line([(60, 930), (W - 60, 930)], fill=(222, 226, 230), width=2)
+    text(d, (60, 948),
          "面包板电源分配：舵机单独 5V，其余模块 3V3，GND 全部共地", f_panel, INK, "la")
 
     # ================= 下：电源分配 =================
-    rail_y = 1010
-    gnd_y = 1210
+    rail_y = 1040
+    gnd_y = 1215
     x0, x1 = 90, 1560
 
-    # 3V3 段：板子 -> 蜂鸣器
-    d.line([(260, rail_y), (1310, rail_y)], fill=RAIL_P, width=9)
-    # 5V 段：舵机专用
-    d.line([(1330, rail_y), (1560, rail_y)], fill=RAIL_5V, width=9)
-    d.line([(90, gnd_y), (x1, gnd_y)], fill=RAIL_N, width=9)
+    d.line([(240, rail_y), (1240, rail_y)], fill=RAIL_P, width=9)
+    d.line([(1270, rail_y), (1560, rail_y)], fill=RAIL_5V, width=9)
+    d.line([(x0, gnd_y), (x1, gnd_y)], fill=RAIL_N, width=9)
 
-    text(d, (260, rail_y - 30), "+ 3V3（面包板 + 轨）", f_mod, RAIL_P, "la")
-    text(d, (1330, rail_y - 30), "+ 5V（舵机专用）", f_mod, RAIL_5V, "la")
+    text(d, (240, rail_y - 30), "+ 3V3（面包板 + 轨）", f_mod, RAIL_P, "la")
+    text(d, (1270, rail_y - 30), "+ 5V（舵机专用）", f_mod, RAIL_5V, "la")
     text(d, (x0, gnd_y + 14), "- GND（面包板 - 轨）", f_mod, RAIL_N, "la")
 
     for x in range(x0 + 30, x1 - 10, 34):
         d.ellipse([x - 2, gnd_y - 2, x + 2, gnd_y + 2], fill=(120, 130, 136))
 
-    board2 = (140, 1030, 380, 1160)
+    board2 = (120, 1055, 330, 1180)
     rounded(d, board2, 10, BOARD_FILL, BOARD_LINE, 2)
-    text(d, (260, 1052), "STM32 板", f_mod, INK, "ma")
-    text(d, (260, 1082), "3V3 → + 轨", f_small, MUTED, "ma")
-    text(d, (260, 1104), "GND → - 轨", f_small, MUTED, "ma")
+    text(d, (225, 1076), "STM32 板", f_mod, INK, "ma")
+    text(d, (225, 1106), "3V3 → + 轨", f_small, MUTED, "ma")
+    text(d, (225, 1128), "GND → - 轨", f_small, MUTED, "ma")
 
-    bx = 260
-    d.line([(bx, board2[1]), (bx, rail_y)], fill=RAIL_P, width=4)
-    d.line([(bx, board2[3]), (bx, gnd_y)], fill=RAIL_N, width=4)
+    d.line([(225, board2[1]), (225, rail_y)], fill=RAIL_P, width=4)
+    d.line([(225, board2[3]), (225, gnd_y)], fill=RAIL_N, width=4)
 
     mods = [
-        (430, 620, "OLED", "vcc3"),
-        (660, 850, "编码器", "gnd"),
-        (890, 1080, "触摸模块", "vcc3"),
-        (1120, 1310, "蜂鸣器", "vcc3"),
-        (1330, 1560, "舵机 SG90", "vcc5"),
+        (370, 520, "红外避障", "vcc3"),
+        (550, 700, "OLED", "vcc3"),
+        (730, 880, "编码器", "gnd"),
+        (910, 1060, "触摸模块", "vcc3"),
+        (1090, 1240, "蜂鸣器", "vcc3"),
+        (1270, 1520, "舵机 SG90", "vcc5"),
     ]
     for mx0, mx1, name, kind in mods:
-        box = (mx0, 1030, mx1, 1160)
+        box = (mx0, 1055, mx1, 1180)
         rounded(d, box, 10, MOD_FILL, MOD_LINE, 2)
-        text(d, ((mx0 + mx1) // 2, 1052), name, f_mod, INK, "ma")
+        text(d, ((mx0 + mx1) // 2, 1076), name, f_mod, INK, "ma")
         cx = (mx0 + mx1) // 2
         if kind == "vcc3":
-            text(d, (cx, 1082), "VCC → + 轨", f_small, MUTED, "ma")
+            text(d, (cx, 1106), "VCC → + 轨", f_small, MUTED, "ma")
             d.line([(cx, box[1]), (cx, rail_y)], fill=RAIL_P, width=3)
             d.ellipse([cx - 6, rail_y - 6, cx + 6, rail_y + 6], fill=RAIL_P)
         elif kind == "vcc5":
-            text(d, (cx, 1082), "VCC → 5V", f_small, RAIL_5V, "ma")
+            text(d, (cx, 1106), "VCC → 5V", f_small, RAIL_5V, "ma")
             d.line([(cx, box[1]), (cx, rail_y)], fill=RAIL_5V, width=3)
             d.ellipse([cx - 6, rail_y - 6, cx + 6, rail_y + 6], fill=RAIL_5V)
         else:
-            text(d, (cx, 1082), "C 接 GND", f_small, MUTED, "ma")
-        text(d, (cx, 1104), "GND → - 轨", f_small, MUTED, "ma")
+            text(d, (cx, 1106), "C 接 GND", f_small, MUTED, "ma")
+        text(d, (cx, 1128), "GND → - 轨", f_small, MUTED, "ma")
         d.line([(cx, box[3]), (cx, gnd_y)], fill=RAIL_N, width=3)
         d.ellipse([cx - 6, gnd_y - 6, cx + 6, gnd_y + 6], fill=RAIL_N)
 

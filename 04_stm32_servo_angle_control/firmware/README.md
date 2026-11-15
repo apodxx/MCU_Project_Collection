@@ -35,8 +35,9 @@ firmware/
 | 功能 | 引脚 | 说明 |
 | :-- | :-- | :-- |
 | 舵机信号 | PA0 | TIM2_CH1，复用推挽，50Hz |
-| 编码器 A / B | PA1 / PA2 | 内部上拉输入，正交解码 |
+| 编码器 A / B | PA1 / PA2 | 内部上拉输入，正交解码（切模式） |
 | 触摸 OUT | PA3 | 输入（下拉），极性上电自检 |
+| 红外 OUT | PA4 | 输入（上拉），检测到车为低电平 |
 | 蜂鸣器 IN | PB5 | 输出，默认低电平触发 |
 | OLED SCL / SDA | PB10 / PB11 | I2C2（PB6/PB7 的 I2C1 也可，自动识别） |
 | 调试串口 | PA9 / PA10 | USART1，115200 |
@@ -69,12 +70,12 @@ File > Open Projects from File System... -> 选本目录 -> Ctrl+B -> ▶ 烧录
   `USER CODE 3` 调 `app_task()`，CubeMX 重新生成代码不会覆盖。
 - **pwm.c**：`servo_set_angle(angle)` 把 0~180° 映射成 500~2500µs，直接写 CCR。
 - **encoder.c**：16 项状态表解码，`ENC_COUNTS_PER_STEP` 控制每格跳变数。
-- **app.c**：三态状态机（手动/预设/往复，编码器切换）+ 20ms 缓动 + 到位/限位提示音；
-  触摸短按按模式执行（手动 +15° / 预设切位），长按关闸。
+- **app.c**：两种模式（自动/手动，编码器切换）+ 红外消抖 + 20ms 缓动；
+  自动模式检测到车开闸、车走 3 秒关闸；手动模式有车蜂鸣提醒、触摸开关闸，长按强制关闸。
 
 ## 字库
 
-中文只提取代码里用到的 19 个字符。改提示语后执行：
+中文只提取代码里用到的 21 个字符（含 °）。改提示语后执行：
 
 ```powershell
 python tools/gen_font.py --preview docs/ui-preview.png
@@ -83,18 +84,22 @@ python tools/gen_font.py --preview docs/ui-preview.png
 ## 串口调试输出
 
 ```text
-=== Project 04: STM32 Servo Angle Control ===
+=== Project 04: STM32 Auto Gate (IR + servo) ===
 [SYS] HCLK=72000000 Hz
 [TOUCH] idle high=0/50 -> active level HIGH
-[CFG] start=0 deg step=15 deg ramp=2 deg/20ms
+[CFG] mode=AUTO open=90 close=0 auto-close=3000ms
 [OLED] ok, I2C2 addr=0x3C
-[MANUAL] -> 15 deg
-[MODE] PRESET
-[PRESET] 3 (90 deg)
-[MODE] HOME 0 (gate closed)
+[IR] car detected
+[GATE] target 90 deg
+[IR] clear
+[GATE] target 0 deg
+[MODE] MANUAL
+[MANUAL] open
+[GATE] force close
 ```
 
-- `[MANUAL] -> xx deg`：手动模式按触摸抬杆
-- `[MODE] MANUAL/PRESET/SWEEP`：编码器切换模式
-- `[PRESET] n (xx deg)`：预设模式按触摸切预置位
-- `[MODE] HOME 0`：长按关闸
+- `[IR] car detected / clear`：红外检测到车 / 车离开
+- `[GATE] target xx deg`：闸门目标角度变化
+- `[MODE] AUTO/MANUAL`：编码器切换模式
+- `[MANUAL] open/close`：手动模式按触摸开闸/关闸
+- `[GATE] force close`：长按强制关闸

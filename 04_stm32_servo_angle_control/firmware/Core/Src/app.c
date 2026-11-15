@@ -1,12 +1,13 @@
 /**
   ******************************************************************************
   * @file    app.c
-  * @brief   舵机角度控制：编码器拧角度 + 触摸切模式 + 蜂鸣器提示
+  * @brief   自动闸门：红外检测车辆 + 自动/手动两种模式 + 舵机抬杆
   *
   * 交互：
-  *   旋转编码器：手动模式调角度（每格 5°）；预设模式切换预设点
-  *   触摸短按  ：手动 → 预设 → 往复 循环
-  *   触摸长按  ：回到中位 90°，并切回手动
+  *   编码器转一格：自动 ↔ 手动 切换
+  *   自动模式：红外检测到车 → 开闸；车走后 3 秒 → 自动关闸
+  *   手动模式：红外检测到车 → 蜂鸣提醒；按触摸 → 开闸/关闸
+  *   长按触摸：立即关闸（两种模式都生效）
   ******************************************************************************
   */
 #include "app.h"
@@ -21,25 +22,27 @@
 #define OLED_RETRY_MS      1000u
 #define BTN_DEBOUNCE_MS    20u
 #define BTN_LONG_MS        800u
+#define BLINK_PERIOD_MS    400u
 
 typedef enum
 {
-  MODE_MANUAL = 0,
-  MODE_PRESET,
-  MODE_SWEEP,
+  MODE_AUTO = 0,
+  MODE_MANUAL,
   MODE_COUNT
 } mode_t;
-
-static const uint8_t s_presets[5] = {0u, 45u, 90u, 135u, 180u};
 
 static mode_t   s_mode;
 static uint8_t  s_target;
 static uint8_t  s_current;
-static uint8_t  s_preset;
 static uint8_t  s_arrived;
+
+static uint8_t  s_ir_raw;
+static uint8_t  s_ir_present;
+static uint32_t s_ir_change_tick;
+static uint32_t s_auto_close_tick;      /* 0 = 没在计时 */
+
 static uint32_t s_last_ramp;
 static uint32_t s_beep_until;
-
 static uint32_t s_last_render;
 static uint32_t s_oled_retry;
 
@@ -83,14 +86,7 @@ static void beep(uint32_t ms)
 
 static void buzzer_task(void)
 {
-  if (HAL_GetTick() < s_beep_until)
-  {
-    buzzer_set(1);
-  }
-  else
-  {
-    buzzer_set(0);
-  }
+  buzzer_set((HAL_GetTick() < s_beep_until) ? 1u : 0u);
 }
 
 static void set_target(uint8_t angle)
@@ -105,61 +101,118 @@ static void set_target(uint8_t angle)
   }
   s_target = angle;
   s_arrived = 0;
-  printf("[TARGET] %u\r\n", (unsigned int)angle);
+  printf("[GATE] target %u deg\r\n", (unsigned int)angle);
+}
+
+/* ------------------------------ 红外检测 ------------------------------ */
+
+static uint8_t ir_active(void)
+{
+  return (HAL_GPIO_ReadPin(IR_PORT, IR_PIN) == IR_ACTIVE_LEVEL) ? 1u : 0u;
+}
+
+static void on_ir_changed(void)
+{
+  if (s_ir_present != 0u)
+  {
+    printf("[IR] car detected\r\n");
+    if (s_mode == MODE_MANUAL)
+    {
+      beep(APP_BEEP_CAR_MS);          /* 手动模式：提醒有车，等按键 */
+    }
+    else
+    {
+      set_target(APP_GATE_OPEN_ANGLE); /* 自动模式：直接开闸 */
+      s_auto_close_tick = 0;
+    }
+  }
+  else
+  {
+    printf("[IR] clear\r\n");
+    if ((s_mode == MODE_AUTO) && (s_target == APP_GATE_OPEN_ANGLE))
+    {
+      s_auto_close_tick = HAL_GetTick() + APP_AUTO_CLOSE_MS;
+    }
+  }
+}
+
+static void ir_task(void)
+{
+  uint32_t now = HAL_GetTick();
+  uint8_t raw = ir_active();
+
+  if (raw != s_ir_raw)
+  {
+    s_ir_raw = raw;
+    s_ir_change_tick = now;
+  }
+
+  if (((now - s_ir_change_tick) >= APP_IR_DEBOUNCE_MS) && (raw != s_ir_present))
+  {
+    s_ir_present = raw;
+    on_ir_changed();
+  }
+}
+
+/* 自动模式：车在就保持开闸；车走后延时关闸 */
+static void auto_task(void)
+{
+  uint32_t now = HAL_GetTick();
+
+  if (s_mode != MODE_AUTO)
+  {
+    s_auto_close_tick = 0;
+    return;
+  }
+
+  if (s_ir_present != 0u)
+  {
+    if (s_target != APP_GATE_OPEN_ANGLE)
+    {
+      set_target(APP_GATE_OPEN_ANGLE);
+    }
+    s_auto_close_tick = 0;
+    return;
+  }
+
+  if ((s_auto_close_tick != 0u) && (now >= s_auto_close_tick))
+  {
+    s_auto_close_tick = 0;
+    if (s_target == APP_GATE_OPEN_ANGLE)
+    {
+      set_target(APP_GATE_CLOSE_ANGLE);
+      beep(APP_BEEP_ARRIVE_MS);
+    }
+  }
 }
 
 /* ------------------------------ 模式切换 ------------------------------ */
 
-static const char *mode_name(char *buf, size_t size)
-{
-  if (s_mode == MODE_MANUAL)
-  {
-    return "手动";
-  }
-  if (s_mode == MODE_PRESET)
-  {
-    (void)snprintf(buf, size, "预设%u", (unsigned int)(s_preset + 1u));
-    return buf;
-  }
-  return "往复";
-}
-
 static void on_short_press(void)
 {
-  if (s_mode == MODE_MANUAL)
+  if (s_mode != MODE_MANUAL)
   {
-    /* 手动模式：每按一次，栏杆抬 15°，到顶后回到 0° */
-    uint16_t next = (uint16_t)s_target + APP_MANUAL_STEP;
-
-    if (next > SERVO_ANGLE_MAX)
-    {
-      next = 0;
-    }
-    set_target((uint8_t)next);
-    beep(APP_BEEP_ARRIVE_MS);
-    printf("[MANUAL] -> %u deg\r\n", (unsigned int)next);
+    return;                            /* 自动模式下触摸不动作 */
   }
-  else if (s_mode == MODE_PRESET)
+
+  if (s_target == APP_GATE_CLOSE_ANGLE)
   {
-    /* 预设模式：按一次切到下一个预置位 */
-    s_preset = (uint8_t)((s_preset + 1u) % 5u);
-    set_target(s_presets[s_preset]);
-    beep(APP_BEEP_ARRIVE_MS);
-    printf("[PRESET] %u (%u deg)\r\n", (unsigned int)(s_preset + 1u),
-           (unsigned int)s_presets[s_preset]);
+    set_target(APP_GATE_OPEN_ANGLE);
+    printf("[MANUAL] open\r\n");
   }
   else
   {
-    /* 往复模式自动运行，短按不动作 */
+    set_target(APP_GATE_CLOSE_ANGLE);
+    printf("[MANUAL] close\r\n");
   }
+  beep(APP_BEEP_ARRIVE_MS);
 }
 
 static void on_long_press(void)
 {
-  s_mode = MODE_MANUAL;
-  set_target(APP_ANGLE_HOME);
+  set_target(APP_GATE_CLOSE_ANGLE);
   beep(APP_BEEP_LIMIT_MS);
-  printf("[MODE] HOME %u (gate closed)\r\n", (unsigned int)APP_ANGLE_HOME);
+  printf("[GATE] force close\r\n");
 }
 
 static void button_poll(void)
@@ -199,47 +252,31 @@ static void button_poll(void)
   }
 }
 
-/* ------------------------------ 角度控制 ------------------------------ */
-
-static void enter_mode(mode_t mode)
-{
-  s_mode = mode;
-
-  if (mode == MODE_MANUAL)
-  {
-    set_target(s_current);                        /* 手动：从当前角度接着按 */
-  }
-  else if (mode == MODE_PRESET)
-  {
-    set_target(s_presets[s_preset]);              /* 预设：先到当前预置位 */
-  }
-  else
-  {
-    set_target((s_current < 90u) ? 180u : 0u);    /* 往复：先摆向另一头 */
-  }
-
-  beep(APP_BEEP_ARRIVE_MS);
-  printf("[MODE] %s\r\n", (mode == MODE_MANUAL) ? "MANUAL" :
-                          (mode == MODE_PRESET) ? "PRESET" : "SWEEP");
-}
-
-/* 编码器只负责切模式：转一格切一个，循环 */
+/* 编码器只负责切模式：自动 ↔ 手动 */
 static void encoder_apply(int8_t dir)
 {
-  int16_t mode = (int16_t)s_mode + (int16_t)dir;
+  (void)dir;
+  s_mode = (s_mode == MODE_AUTO) ? MODE_MANUAL : MODE_AUTO;
+  s_auto_close_tick = 0;
 
-  if (mode < 0)
+  if (s_mode == MODE_AUTO)
   {
-    mode = (int16_t)MODE_COUNT - 1;
+    if (s_ir_present != 0u)
+    {
+      set_target(APP_GATE_OPEN_ANGLE);
+    }
   }
-  if (mode >= (int16_t)MODE_COUNT)
+  else if (s_ir_present != 0u)
   {
-    mode = 0;
+    beep(APP_BEEP_CAR_MS);            /* 切到手动时已经有车：提醒一下 */
   }
-  enter_mode((mode_t)mode);
+
+  printf("[MODE] %s\r\n", (s_mode == MODE_AUTO) ? "AUTO" : "MANUAL");
+  beep(APP_BEEP_ARRIVE_MS);
 }
 
-/* 每 20ms 让当前角度向目标走一步，形成缓动 */
+/* ------------------------------ 角度控制 ------------------------------ */
+
 static void ramp_task(void)
 {
   uint32_t now = HAL_GetTick();
@@ -271,10 +308,6 @@ static void ramp_task(void)
   {
     s_arrived = 1;
     beep(APP_BEEP_ARRIVE_MS);
-    if (s_mode == MODE_SWEEP)
-    {
-      set_target((s_target >= 180u) ? 0u : 180u);
-    }
   }
 }
 
@@ -283,23 +316,50 @@ static void ramp_task(void)
 static void render(void)
 {
   char buf[16];
-  char mode_buf[16];
+  const char *status;
+  uint8_t waiting = 0;
+  uint32_t now = HAL_GetTick();
+  uint8_t blink_on = (uint8_t)(((now / BLINK_PERIOD_MS) & 1u) != 0u);
+
+  if (s_current != s_target)
+  {
+    status = "运动";
+  }
+  else if (s_target == APP_GATE_OPEN_ANGLE)
+  {
+    status = "开闸";
+  }
+  else if ((s_mode == MODE_MANUAL) && (s_ir_present != 0u))
+  {
+    status = "等待";                    /* 有车，等按触摸 */
+    waiting = 1;
+  }
+  else
+  {
+    status = "关闸";
+  }
 
   oled_clear();
 
   oled_draw_text(0, 0, "模式");
-  oled_draw_text(40, 0, mode_name(mode_buf, sizeof(mode_buf)));
+  oled_draw_text(40, 0, (s_mode == MODE_AUTO) ? "自动" : "手动");
 
-  oled_draw_text(0, 16, "目标");
-  (void)snprintf(buf, sizeof(buf), "%u°", (unsigned int)s_target);
-  oled_draw_text(40, 16, buf);
+  oled_draw_text(0, 16, "红外");
+  oled_draw_text(40, 16, (s_ir_present != 0u) ? "有车" : "无车");
 
-  oled_draw_text(0, 32, "当前");
+  oled_draw_text(0, 32, "角度");
   (void)snprintf(buf, sizeof(buf), "%u°", (unsigned int)s_current);
   oled_draw_text(40, 32, buf);
 
   oled_draw_text(0, 48, "状态");
-  oled_draw_text(40, 48, (s_arrived != 0u) ? "到位" : "转动中");
+  if ((waiting != 0u) && (blink_on == 0u))
+  {
+    /* 等待时闪烁，提醒按触摸 */
+  }
+  else
+  {
+    oled_draw_text(40, 48, status);
+  }
 
   oled_flush();
 }
@@ -347,6 +407,12 @@ void app_init(void)
   gpio.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(TOUCH_PORT, &gpio);
 
+  /* 红外输入：上拉，检测到遮挡时模块拉低 */
+  gpio.Pin = IR_PIN;
+  gpio.Mode = GPIO_MODE_INPUT;
+  gpio.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(IR_PORT, &gpio);
+
   /* TTP223 有两种输出极性：上电按空闲电平自动识别（此时别碰触摸板） */
   for (i = 0; i < 50u; i++)
   {
@@ -361,20 +427,21 @@ void app_init(void)
   encoder_init();
   pwm_init();
 
-  s_mode = MODE_MANUAL;
-  s_current = APP_ANGLE_HOME;
-  s_target = APP_ANGLE_HOME;
+  s_mode = MODE_AUTO;
+  s_current = APP_GATE_CLOSE_ANGLE;
+  s_target = APP_GATE_CLOSE_ANGLE;
   s_arrived = 1;
-  s_preset = 2u;
-  servo_set_angle(APP_ANGLE_HOME);
+  s_ir_raw = ir_active();
+  s_ir_present = 0;
+  servo_set_angle(APP_GATE_CLOSE_ANGLE);
 
-  printf("=== Project 04: STM32 Servo Angle Control ===\r\n");
+  printf("=== Project 04: STM32 Auto Gate (IR + servo) ===\r\n");
   printf("[SYS] HCLK=%lu Hz\r\n", (unsigned long)HAL_RCC_GetHCLKFreq());
   printf("[TOUCH] idle high=%lu/50 -> active level %s\r\n",
          (unsigned long)high_cnt, (s_touch_active_level == GPIO_PIN_SET) ? "HIGH" : "LOW");
-  printf("[CFG] start=%u deg step=%u deg ramp=%u deg/%ums\r\n",
-         (unsigned int)APP_ANGLE_HOME, (unsigned int)APP_MANUAL_STEP,
-         (unsigned int)APP_RAMP_STEP, (unsigned int)APP_RAMP_MS);
+  printf("[CFG] mode=AUTO open=%u close=%u auto-close=%ums\r\n",
+         (unsigned int)APP_GATE_OPEN_ANGLE, (unsigned int)APP_GATE_CLOSE_ANGLE,
+         (unsigned int)APP_AUTO_CLOSE_MS);
 
   if (oled_init() != 0u)
   {
@@ -393,6 +460,7 @@ void app_task(void)
   /* 心跳灯 */
   led_set((HAL_GetTick() % 1000u) < 500u ? 1u : 0u);
 
+  ir_task();
   button_poll();
 
   dir = encoder_poll();
@@ -401,6 +469,7 @@ void app_task(void)
     encoder_apply(dir);
   }
 
+  auto_task();
   ramp_task();
   buzzer_task();
   ui_task();

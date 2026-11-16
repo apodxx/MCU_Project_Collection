@@ -40,6 +40,8 @@
 > **彩蛋项目**：[26 · 瓦楞机器人（ESP32-C3 纸板表情机器人）](26_esp32c3_corrugated_robot/README.md)　★★　🚧
 > 两个舵机 + 触摸 + 双红外 + 0.96" OLED，摸一下就换表情、点头、摇头。
 
+> **杂志风清单**（5 页，1080×1440）：[封面](docs/magazine-projects/page-01.png) · [入门](docs/magazine-projects/page-02.png) · [进阶](docs/magazine-projects/page-03.png) · [联网](docs/magazine-projects/page-04.png) · [综合](docs/magazine-projects/page-05.png)　可编辑源文件：[projects-index.html](docs/magazine-projects/projects-index.html)
+
 ## 难度分级
 
 - **★ 入门级**：外设驱动、数据采集、显示与简单控制

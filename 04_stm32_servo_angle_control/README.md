@@ -152,6 +152,14 @@ while(1) ─> app_task()
 | 蜂鸣器一直响 | 模块高电平触发，改 `BUZZER_ON_LEVEL` |
 | 屏幕黑屏 | 查 VCC/GND/SCL/SDA；固件会自动试 I2C1/I2C2 |
 
+## 杂志风图文（5 页）
+
+用 editorial-magazine 技能做的一组 1080×1440 编辑专题，讲清楚“为什么要两种模式、红外怎么检测、栏杆怎么动”：
+
+[封面](docs/magazine/page-01.png) · [论述](docs/magazine/page-02.png) · [一次通行](docs/magazine/page-03.png) · [手动与兜底](docs/magazine/page-04.png) · [参数附录](docs/magazine/page-05.png)
+
+可编辑源文件：[magazine.html](docs/magazine/magazine.html)，素材与来源见 [sources.md](docs/magazine/sources.md)。
+
 ## 扩展方向
 
 - 加超声波测距，做「车到 30cm 内才开闸」

@@ -9,7 +9,7 @@
   *   旋转编码器 B     -> PA2
   *   旋转编码器 C     -> GND    （公共端）
   *   触摸模块 OUT     -> PA3    （手动模式开/关闸）
-  *   红外避障 OUT     -> PA4    （检测车辆，低电平有效）
+  *   红外避障 OUT     -> PA4    （自动模式检测车辆，低电平有效）
   *   蜂鸣器 IN        -> PB5    （低电平触发）
   *   OLED SCL        -> PB10   （I2C2；接 PB6/I2C1 也能自动识别）
   *   OLED SDA        -> PB11
@@ -61,15 +61,15 @@
 #define LED_OFF_LEVEL           ((LED_ON_LEVEL == GPIO_PIN_SET) ? GPIO_PIN_RESET : GPIO_PIN_SET)
 
 /* ---------------------------- 业务参数 ---------------------------- */
-#define APP_GATE_OPEN_ANGLE     90      /* 开闸角度：栏杆竖起 */
-#define APP_GATE_CLOSE_ANGLE    0       /* 关闸角度：栏杆水平 */
-#define APP_AUTO_CLOSE_MS       3000    /* 车走后多久自动关闸 */
+#define APP_OPEN_ANGLE          90      /* 开闸：栏杆竖起 */
+#define APP_CLOSE_ANGLE         0       /* 关闸：栏杆水平 */
+#define APP_SWEEP_FAR           180     /* 往复模式的两个端点 */
 #define APP_IR_DEBOUNCE_MS      50      /* 红外消抖 */
 #define APP_RAMP_MS             20      /* 每 20ms 走一步 */
 #define APP_RAMP_STEP           2       /* 每步 2° */
 #define APP_ARRIVE_TOL          1       /* 差 1° 以内算到位 */
 #define APP_BEEP_ARRIVE_MS      60      /* 到位提示音 */
-#define APP_BEEP_CAR_MS         300     /* 手动模式“有车”提醒音 */
-#define APP_BEEP_LIMIT_MS       200     /* 手动关闸提示音 */
+#define APP_BEEP_CAR_MS         300     /* 检测到变化时的提示音 */
+#define APP_BEEP_LIMIT_MS       200     /* 强制关闸提示音 */
 
 #endif /* BOARD_H */

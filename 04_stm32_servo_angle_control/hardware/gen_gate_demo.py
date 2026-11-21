@@ -68,7 +68,7 @@ def main():
     d = ImageDraw.Draw(img)
 
     tx(d, (W // 2, 30), "项目 04 · 自动闸门：红外检测 + 舵机抬杆", f(34), INK, "ma")
-    tx(d, (W // 2, 78), "车压到红外 → 自动模式直接抬杆；手动模式先蜂鸣提醒，按触摸才抬杆", f(18),
+    tx(d, (W // 2, 78), "手动：按触摸开/关；自动：红外检测到就开、离开就关；往复：0°～180° 自动来回", f(18),
        MUTED, "ma")
 
     panels = [
@@ -102,7 +102,7 @@ def main():
             d.arc([sx - 120, sy - 120, sx + 120, sy + 120], start=270, end=360,
                   fill=ACCENT, width=5)
             d.polygon([(sx + 118, sy - 6), (sx + 98, sy - 24), (sx + 108, sy + 12)], fill=ACCENT)
-            tx(d, (x0 + 520, ground - 200), "手动：蜂鸣提醒 → 按触摸", f(16), ACCENT, "ma")
+            tx(d, (x0 + 520, ground - 200), "手动：按触摸 → 开闸", f(16), ACCENT, "ma")
         else:
             d.rectangle([sx - 16, sy - 340, sx + 16, sy], fill=ARM)
             d.rectangle([sx - 30, sy - 340, sx + 30, sy - 285], fill=ACCENT)
@@ -110,16 +110,16 @@ def main():
             d.arc([sx - 120, sy - 120, sx + 120, sy + 120], start=180, end=270,
                   fill=ACCENT, width=5)
             d.polygon([(sx - 118, sy - 6), (sx - 98, sy - 24), (sx - 108, sy + 12)], fill=ACCENT)
-            tx(d, (x0 + 520, ground - 200), "自动：检测到车直接抬杆", f(16), ACCENT, "ma")
+            tx(d, (x0 + 520, ground - 200), "自动：红外检测到 → 开闸", f(16), ACCENT, "ma")
 
     # 底部说明
     d.rounded_rectangle([60, 790, 1540, 870], radius=12, fill=(255, 248, 225),
                         outline=(255, 193, 7), width=2)
     tx(d, (84, 806),
-       "自动模式：红外有车 → 开闸；车走后 3 秒 → 自动关闸",
+       "手动：目标恒定 90°，按触摸 当前 0°～90°　·　自动：红外有东西 → 90°，离开 → 0°",
        f(17), (95, 70, 0), "la")
     tx(d, (84, 836),
-       "手动模式：红外有车 → 蜂鸣提醒（状态闪「等待」）→ 按触摸开闸/关闸；长按立即关闸",
+       "往复：0° ～ 180° 自动来回　·　任何模式长按触摸 = 强制关闸回 0°",
        f(17), (95, 70, 0), "la")
 
     img.save(out)

@@ -70,12 +70,12 @@ File > Open Projects from File System... -> 选本目录 -> Ctrl+B -> ▶ 烧录
   `USER CODE 3` 调 `app_task()`，CubeMX 重新生成代码不会覆盖。
 - **pwm.c**：`servo_set_angle(angle)` 把 0~180° 映射成 500~2500µs，直接写 CCR。
 - **encoder.c**：16 项状态表解码，`ENC_COUNTS_PER_STEP` 控制每格跳变数。
-- **app.c**：两种模式（自动/手动，编码器切换）+ 红外消抖 + 20ms 缓动；
-  自动模式检测到车开闸、车走 3 秒关闸；手动模式有车蜂鸣提醒、触摸开关闸，长按强制关闸。
+- **app.c**：三种模式（手动/往复/自动，编码器切换）+ 红外消抖 + 20ms 缓动；
+  手动模式触摸开/关闸；往复模式 0°↔180° 自动折返；自动模式按红外上升沿/下降沿开合闸，长按强制关闸。
 
 ## 字库
 
-中文只提取代码里用到的 21 个字符（含 °）。改提示语后执行：
+中文只提取代码里用到的 20 个字符（含 °）。改提示语后执行：
 
 ```powershell
 python tools/gen_font.py --preview docs/ui-preview.png
@@ -84,22 +84,25 @@ python tools/gen_font.py --preview docs/ui-preview.png
 ## 串口调试输出
 
 ```text
-=== Project 04: STM32 Auto Gate (IR + servo) ===
+=== Project 04: STM32 Auto Gate (3 modes) ===
 [SYS] HCLK=72000000 Hz
 [TOUCH] idle high=0/50 -> active level HIGH
-[CFG] mode=AUTO open=90 close=0 auto-close=3000ms
+[CFG] open=90 close=0 sweep=180 debounce=50ms
 [OLED] ok, I2C2 addr=0x3C
-[IR] car detected
-[GATE] target 90 deg
-[IR] clear
-[GATE] target 0 deg
-[MODE] MANUAL
+[MODE] 手动
 [MANUAL] open
+[GATE] -> 90 deg
+[MANUAL] close
+[GATE] -> 0 deg
+[MODE] 往复
+[MODE] 自动
+[IR] object
+[IR] clear
 [GATE] force close
 ```
 
-- `[IR] car detected / clear`：红外检测到车 / 车离开
-- `[GATE] target xx deg`：闸门目标角度变化
-- `[MODE] AUTO/MANUAL`：编码器切换模式
+- `[IR] object / clear`：红外检测到东西 / 东西离开
+- `[GATE] -> xx deg`：当前指令角度变化
+- `[MODE] 手动/往复/自动`：编码器切换模式
 - `[MANUAL] open/close`：手动模式按触摸开闸/关闸
 - `[GATE] force close`：长按强制关闸
